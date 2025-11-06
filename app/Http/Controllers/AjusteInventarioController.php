@@ -8,6 +8,7 @@ use App\TipoBajas;
 use Illuminate\Contracts\Logging\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use FPDF;
 
 class AjusteInventarioController extends Controller
 {
@@ -253,5 +254,93 @@ class AjusteInventarioController extends Controller
 
         $motivo->nombre = $request->nombre;
         $motivo->save();
+    }
+
+    public function exportarPDF(Request $request)
+    {
+        $productos = $request->productos;
+        $almacenId = $request->almacen;
+        $motivo = $request->motivo;
+        $fecha = now()->format('d/m/Y H:i');
+
+        // Obtener el nombre del almacén
+        $nombreAlmacen = \DB::table('almacens')->where('id', $almacenId)->value('nombre_almacen');
+
+        $pdf = new PDFConFooter('L', 'mm', 'A4');
+        $pdf->AddPage();
+        $pdf->SetAutoPageBreak(true, 20);
+        $pdf->AliasNbPages();
+
+        $truncarTexto = function ($pdf, $texto, $maxWidth) {
+            $texto = utf8_decode($texto);
+            if ($pdf->GetStringWidth($texto) <= $maxWidth) {
+                return $texto;
+            }
+            while ($pdf->GetStringWidth($texto . '...') > $maxWidth && strlen($texto) > 0) {
+                $texto = substr($texto, 0, -1);
+            }
+            return $texto . '...';
+        };
+
+        // ENCABEZADO
+        $pdf->SetFont('Arial', 'B', 14);
+        $pdf->Cell(0, 8, utf8_decode("REPORTE DE AJUSTE DE INVENTARIO - $nombreAlmacen"), 0, 1, 'C');
+        $pdf->SetFont('Arial', '', 10);
+        $pdf->Cell(0, 6, utf8_decode("Generado el $fecha"), 0, 1, 'C');
+        $pdf->Ln(5);
+
+        // FILTROS
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(50, 6, utf8_decode("Almacén: $nombreAlmacen"), 0, 0, 'L');
+        $pdf->Cell(80, 6, utf8_decode("Motivo: $motivo"), 0, 1, 'L');
+        $pdf->Ln(8);
+
+        $pageWidth = $pdf->GetPageWidth() - 40;
+        $startX = ($pdf->GetPageWidth() - $pageWidth) / 2;
+
+        // ENCABEZADO DE TABLA
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetFillColor(230, 230, 230);
+
+        $pdf->SetX($startX);
+        $pdf->Cell(10, 8, '#', 1, 0, 'C', true);
+        $pdf->Cell(30, 8, utf8_decode('Código'), 1, 0, 'C', true);
+        $pdf->Cell(70, 8, utf8_decode('Producto'), 1, 0, 'C', true);
+        $pdf->Cell(50, 8, utf8_decode('Proveedor'), 1, 0, 'C', true);
+        $pdf->Cell(25, 8, utf8_decode('Stock Actual'), 1, 0, 'C', true);
+        $pdf->Cell(25, 8, utf8_decode('Stock Real'), 1, 0, 'C', true);
+        $pdf->Cell(25, 8, utf8_decode('Cantidad Ajuste'), 1, 0, 'C', true);
+        $pdf->Cell(25, 8, utf8_decode('Stock Restante'), 1, 1, 'C', true);
+
+        // CUERPO
+        $pdf->SetFont('Arial', '', 8);
+        $contador = 1;
+        foreach ($productos as $producto) {
+            $pdf->SetX($startX);
+            $pdf->Cell(10, 7, $contador++, 1, 0, 'C');
+            $pdf->Cell(30, 7, $truncarTexto($pdf, $producto['codigo'], 28), 1);
+            $pdf->Cell(70, 7, $truncarTexto($pdf, $producto['nombre'], 68), 1, 0, 'L');
+            $pdf->Cell(50, 7, $truncarTexto($pdf, $producto['nombre_proveedor'], 48), 1, 0, 'L');
+            $pdf->Cell(25, 7, number_format($producto['stock_actual'], 0, ',', '.'), 1, 0, 'R');
+            $pdf->Cell(25, 7, number_format($producto['stock_real'], 0, ',', '.'), 1, 0, 'R');
+            $pdf->Cell(25, 7, number_format($producto['cantidad_ajuste'], 0, ',', '.'), 1, 0, 'R');
+            $pdf->Cell(25, 7, number_format($producto['stock_restante'], 0, ',', '.'), 1, 1, 'R');
+        }
+
+        $nombreArchivo = 'Ajuste_Inventario_' . str_replace(' ', '_', $nombreAlmacen) . '_' . now()->format('d-m-Y') . '.pdf';
+        return response($pdf->Output('S'), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', "attachment; filename=\"$nombreArchivo\"");
+    }
+}
+
+class PDFConFooter extends FPDF
+{
+    public function Footer()
+    {
+        $this->SetY(-15);
+        $this->SetFont('Arial', 'I', 8);
+        $this->SetTextColor(100);
+        $this->Cell(0, 10, utf8_decode('Ajuste de Inventario - Página ') . $this->PageNo() . '/{nb}', 0, 0, 'C');
     }
 }

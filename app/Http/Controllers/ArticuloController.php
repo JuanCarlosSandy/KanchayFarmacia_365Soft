@@ -803,7 +803,8 @@ class ArticuloController extends Controller
         }
 
         $buscar = $request->buscar;
-        $idAlmacen = $request->idAlmacen; // Recibir el idalmacen desde la solicitud
+        $idAlmacen = $request->idAlmacen;
+        $idProveedor = $request->idProveedor;
 
         // Query base con joins necesarios
         $query = Articulo::join('categorias', 'articulos.idcategoria', '=', 'categorias.id')
@@ -834,7 +835,8 @@ class ArticuloController extends Controller
                 DB::raw('SUM(inventarios.saldo_stock) as stock_total')
             )
             ->where('articulos.condicion', '=', 1)
-            ->where('inventarios.idalmacen', $idAlmacen) // Filtrar por almacén
+            ->where('inventarios.idalmacen', $idAlmacen)
+            ->where('inventarios.saldo_stock', '>', 0) // Solo productos con stock disponible
             ->groupBy(
                 'articulos.id',
                 'articulos.idcategoria',
@@ -857,13 +859,18 @@ class ArticuloController extends Controller
                 'articulos.fotografia'
             );
 
+        if ($idProveedor) {
+            $query->where('articulos.idproveedor', $idProveedor);
+        }
+
         if (!empty($buscar)) {
-            $palabras = explode(' ', $buscar); // Dividir la búsqueda en palabras
-            $query->where(function ($q) use ($palabras) {
+            $palabras = explode(' ', $buscar);
+            $query->where(function ($q) use ($palabras, $buscar) {
                 foreach ($palabras as $palabra) {
-                    $q->where(function ($sub) use ($palabra) {
+                    $q->where(function ($sub) use ($palabra, $buscar) {
                         $sub->where('articulos.nombre', 'like', '%' . $palabra . '%')
                             ->orWhere('articulos.codigo', 'like', '%' . $palabra . '%')
+                            ->orWhere('articulos.codigo_alfanumerico', 'like', '%' . $palabra . '%')
                             ->orWhere('categorias.nombre', 'like', '%' . $palabra . '%')
                             ->orWhere('personas.nombre', 'like', '%' . $palabra . '%');
                     });
@@ -871,8 +878,23 @@ class ArticuloController extends Controller
             });
         }
 
-        // Paginación y respuesta
+        // Paginación
         $articulos = $query->orderBy('articulos.id', 'desc')->paginate(6);
+
+        // Obtener fechas de vencimiento y stock para cada artículo
+        foreach ($articulos as $articulo) {
+            $fechasVencimiento = \DB::table('inventarios')
+                ->select('fecha_vencimiento', DB::raw('SUM(saldo_stock) as stock'))
+                ->where('idarticulo', $articulo->id)
+                ->where('idalmacen', $idAlmacen)
+                ->whereNotNull('fecha_vencimiento')
+                ->where('saldo_stock', '>', 0)
+                ->groupBy('fecha_vencimiento')
+                ->orderBy('fecha_vencimiento', 'asc')
+                ->get();
+
+            $articulo->fechas_vencimiento = $fechasVencimiento;
+        }
 
         return [
             'pagination' => [

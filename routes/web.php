@@ -64,6 +64,7 @@ Route::group(["middleware" => ["auth"]], function () {
         Route::post('/ajuste/registrar-multiple', 'AjusteInventarioController@registrarMultiple');
         Route::get('/motivo', 'AjusteInventarioController@listarMotivo');
         Route::post('/motivo/registrar', 'AjusteInventarioController@registrarMotivo');
+        Route::post('/ajustes-inventario/exportar-pdf', 'AjusteInventarioController@exportarPDF')->name('ajustes.exportar-pdf');
 
 
         Route::get('/proveedornewview', 'ProveedorController@index2');
@@ -74,7 +75,7 @@ Route::group(["middleware" => ["auth"]], function () {
             "/proveedor/selectProveedor",
             "ProveedorController@selectProveedor"
         );
-
+        Route::get("/proveedor/selectNombreProveedor","ProveedorController@selectNombreProveedor");
         Route::get("/ingreso", "IngresoController@index");
         Route::post(
             "/ingreso/registrarIngreso",

@@ -6,338 +6,338 @@
         <div class="loading-text">LOADING...</div>
       </div>
     </div>
-    <Panel>
+
+    <Panel v-if="vistaActual === 'formulario'">
       <template #header>
         <div class="panel-header">
-          <i class="pi pi-shopping-cart panel-icon"></i>
+          <i class="pi pi-list mr-2"></i>
           <h4 class="panel-title">AJUSTE DE INVENTARIO</h4>
         </div>
       </template>
 
-      <div class="toolbar-container">
-        <div class="search-bar">
-          <span class="p-input-icon-left">
-            <i class="pi pi-search" />
-            <InputText
-              v-model="buscar"
-              class="form-control"
-              placeholder="Texto a buscar"
-            />
-          </span>
-        </div>
-        <div class="toolbar">
-          <Button
-            :label="mostrarLabel ? 'Reset' : ''"
-            icon="pi pi-refresh"
-            @click="resetBusqueda"
-            class="p-button-help p-button-sm"
-          />
-          <Button
-            :label="mostrarLabel ? 'Nuevo' : ''"
-            icon="pi pi-plus"
-            @click="abrirModal('articulo', 'registrar')"
-            class="p-button-secondary p-button-sm"
-          />
-        </div>
-      </div>
-
-      <DataTable
-        :value="arrayAjuste"
-        class="p-datatable-sm p-datatable-gridlines"
-        responsiveLayout="scroll"
-      >
-        <Column field="nombre_almacen" header="ALMACEN" />
-        <Column field="nombre" header="ARTICULO" />
-        <Column field="cantidad" header="CANTIDAD" />
-        <Column field="tipo" header="TIPO BAJA" />
-        <Column field="created_at" header="FECHA Y HORA" />
-      </DataTable>
-
-      <Paginator
-        :rows="pagination.per_page"
-        :totalRecords="pagination.total"
-        :first="(pagination.current_page - 1) * pagination.per_page"
-        @page="onPageChange"
-      />
-    </Panel>
-
-    <Dialog
-      :visible.sync="modal"
-      modal
-      :header="tituloModal"
-      :closable="true"
-      @hide="cerrarModal"
-      class="responsive-dialog"
-      :containerStyle="dialogContainerStyle"
-    >
       <form @submit.prevent="enviarFormulario">
-        <div class="form-group row">
+        <!-- PARTE 1: ALMACÉN Y PROVEEDOR -->
+        <div class="row mt-3">
           <div class="col-md-6">
-            <label class="font-weight-bold" for="almacen">
-              Almacén <span class="text-danger">*</span>
-            </label>
-            <Dropdown
-              id="almacen"
-              v-model="idAlmacenSeleccionado"
-              :options="arrayAlmacenes"
-              optionLabel="nombre_almacen"
-              optionValue="id"
-              placeholder="Seleccione un almacén"
-              class="form-control"
-              @change="limpiarProductosSeleccionados"
-            />
-            <small class="p-error" v-if="errores.idAlmacenSeleccionado">
-              <strong>{{ errores.idAlmacenSeleccionado }}</strong>
-            </small>
+            <div class="form-group">
+              <label class="font-weight-bold" for="almacen">
+                Almacén <span class="text-danger">*</span>
+              </label>
+              <Dropdown
+                id="almacen"
+                v-model="idAlmacenSeleccionado"
+                :options="arrayAlmacenes"
+                optionLabel="nombre_almacen"
+                optionValue="id"
+                placeholder="Seleccione un almacén"
+                class="form-control"
+                @change="limpiarProductosSeleccionados"
+              />
+            </div>
           </div>
           <div class="col-md-6">
-            <label class="font-weight-bold">
-              Productos <span class="text-danger">*</span>
-            </label>
+            <div class="form-group">
+              <label class="font-weight-bold">Proveedor</label>
+              <div class="input-con-desplegable">
+                <div class="p-inputgroup">
+                  <input
+                    type="text"
+                    v-model="proveedorSeleccionado.nombre"
+                    @input="buscarProveedores($event)"
+                    @keydown.down="moverSeleccionProveedor('abajo')"
+                    @keydown.up="moverSeleccionProveedor('arriba')"
+                    @keydown.enter="seleccionarProveedorConEnter"
+                    placeholder="Buscar proveedor..."
+                    class="p-inputtext p-component"
+                  />
+                </div>
+                <ul v-if="mostrarDesplegableProveedor && proveedoresFiltrados.length > 0" class="desplegable-simple">
+                  <li
+                    v-for="(proveedor, index) in proveedoresFiltrados"
+                    :key="proveedor.id"
+                    @click="seleccionarProveedor(proveedor)"
+                    :class="{ seleccionado: index === indiceSeleccionadoProveedor }"
+                  >
+                    {{ proveedor.nombre }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+                <!-- PARTE 2: MOTIVO DE BAJA Y BOTÓN AGREGAR PRODUCTO -->
+        <div class="row mt-3">
+          <div class="col-md-8">
+            <div class="form-group">
+              <label class="font-weight-bold">
+                Motivo de Baja <span class="text-danger">*</span>
+              </label>
+              <div class="p-inputgroup">
+                <InputText
+                  placeholder="Seleccione un Motivo"
+                  v-model="motivoseleccionado.nombre"
+                  :disabled="true"
+                  class="form-control"
+                />
+                <Button
+                  icon="pi pi-ellipsis-h"
+                  class="p-button-primary"
+                  @click="abrirModal2('Motivo')"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
             <Button
               label="Agregar Producto"
               icon="pi pi-plus"
-              class="p-button-success form-control"
-              @click="abrirModal2('Productos')"
+              class="p-button-success w-100"
+              @click="abrirDialogoProductos"
               :disabled="!idAlmacenSeleccionado"
-              style="justify-content: center;"
             />
-            <small class="text-muted d-block" v-if="!idAlmacenSeleccionado">
-              Primero seleccione un almacén
-            </small>
-            <small class="p-error" v-if="errores.idproducto">
-              <strong>{{ errores.idproducto }}</strong>
-            </small>
-          </div>
-          <div class="col-md-6">
-            <label class="font-weight-bold">
-              Motivo de Baja <span class="text-danger">*</span>
-            </label>
-            <div class="p-inputgroup">
-              <InputText
-                placeholder="Seleccione un Motivo"
-                v-model="motivoseleccionado.nombre"
-                :disabled="true"
-                :class="{ 'p-invalid': errores.idmotivo }"
-                @input="asignarCampos()"
-              />
-              <Button
-                icon="pi pi-ellipsis-h"
-                class="p-button-primary"
-                @click="abrirModal2('Motivo')"
-              />
-            </div>
-            <small class="p-error" v-if="errores.idmotivo">
-              <strong>{{ errores.idmotivo }}</strong>
-            </small>
           </div>
         </div>
-        
-        <div class="form-group row">
-          <!-- Tabla de productos seleccionados -->
-          <div class="form-group row" v-if="hayProductosSeleccionados">
-            <div class="col-md-12">
-              <label class="font-weight-bold">
-                Productos Seleccionados
-              </label>
-              <DataTable 
-                :value="productosSeleccionados" 
-                class="p-datatable-sm p-datatable-gridlines"
-                :paginator="productosSeleccionados.length > 5"
-                :rows="5"
-                responsiveLayout="scroll"
-              >
-                <Column field="nombre" header="Producto" style="width: 30%">
-                  <template #body="slotProps">
-                    <div>
-                      <strong>{{ slotProps.data.nombre }}</strong>
-                      <br>
-                      <small class="text-muted">
-                        <i class="pi pi-building"></i> {{ slotProps.data.nombre_proveedor || 'Sin proveedor' }}
-                      </small>
-                    </div>
-                  </template>
-                </Column>
-                
-                <Column field="stock_actual" header="Stock Actual" style="width: 15%">
-                  <template #body="slotProps">
-                    <span class="badge badge-info">{{ slotProps.data.stock_actual }}</span>
-                  </template>
-                </Column>
-                
-                <Column header="Cantidad a Dar de Baja" style="width: 20%">
-                  <template #body="slotProps">
-                    <InputText
-                      type="number"
-                      v-model="slotProps.data.cantidad_ajuste"
-                      class="form-control"
-                      placeholder="0"
-                      :min="0"
-                      :max="slotProps.data.stock_actual"
-                      @input="actualizarStockRestante(slotProps.data)"
-                      style="width: 100px;"
-                    />
-                    <small 
-                      class="p-error d-block" 
-                      v-if="Number(slotProps.data.cantidad_ajuste) > Number(slotProps.data.stock_actual)"
-                    >
-                      Mayor al stock
+
+        <!-- Tabla de Productos Seleccionados -->
+        <div class="row mt-3" v-if="productosSeleccionados.length > 0">
+          <div class="col-md-12">
+            <label class="font-weight-bold">Productos Seleccionados para Ajuste</label>
+            <DataTable
+              :value="productosSeleccionados"
+              class="p-datatable-sm p-datatable-gridlines"
+              responsiveLayout="scroll"
+            >
+              <Column field="nombre" header="Producto">
+                <template #body="slotProps">
+                  <div>
+                    <strong>{{ slotProps.data.nombre }}</strong>
+                    <br>
+                    <small class="text-muted">
+                      <i class="pi pi-building"></i> {{ slotProps.data.nombre_proveedor || 'Sin proveedor' }}
                     </small>
-                  </template>
-                </Column>
-                
-                <Column field="stock_restante" header="Stock Restante" style="width: 15%">
-                  <template #body="slotProps">
-                    <span 
-                      class="badge"
-                      :class="slotProps.data.stock_restante < 0 ? 'badge-danger' : 'badge-success'"
-                    >
-                      {{ slotProps.data.stock_restante }}
-                    </span>
-                  </template>
-                </Column>
-                
-                <Column header="Acciones" style="width: 8%">
-                  <template #body="slotProps">
-                    <Button
-                      icon="pi pi-trash"
-                      class="p-button-danger p-button-sm"
-                      @click="eliminarProducto(slotProps.index)"
-                      title="Eliminar producto"
-                    />
-                  </template>
-                </Column>
-              </DataTable>
-              
-              <!-- Resumen totales -->
-              <div class="mt-3 p-3" style="background-color: #f8f9fa; border-radius: 5px;">
-                <div class="row" style="display: flex; justify-content: space-between;">                  
-                  <div class="col-md-4">
-                    <strong><i class="pi pi-shopping-cart"></i> Productos: {{ productosSeleccionados.length }}</strong>
                   </div>
-                  <div class="col-md-4">
-                    <strong><i class="pi pi-box"></i> Total Unidades: {{ totalUnidadesAjuste }}</strong>
-                  </div>
+                </template>
+              </Column>
+
+              <Column field="stock_actual" header="Stock Actual">
+                <template #body="slotProps">
+                  <span class="badge badge-info">{{ slotProps.data.stock_actual }}</span>
+                </template>
+              </Column>
+              <Column header="Stock Real">
+                <template #body="slotProps">
+                  <InputText
+                    type="number"
+                    v-model="slotProps.data.stock_real"
+                    class="form-control"
+                    placeholder="0"
+                    :min="0"
+                    :max="slotProps.data.stock_actual"
+                    @input="calcularDiferencia(slotProps.data)"
+                    @keydown.tab.prevent="moverFoco(slotProps.index, $event, 'stock_real')"
+                    :ref="'stock_real-' + slotProps.index"
+                  />
+                  <small
+                    class="p-error d-block"
+                    v-if="Number(slotProps.data.stock_real) > Number(slotProps.data.stock_actual)"
+                  >
+                    Mayor al stock disponible
+                  </small>
+                </template>
+              </Column>
+              <Column header="Cantidad a Dar de Baja">
+                <template #body="slotProps">
+                  <InputText
+                    type="number"
+                    v-model="slotProps.data.cantidad_ajuste"
+                    class="form-control"
+                    placeholder="0"
+                    disabled
+                    @keydown.tab.prevent="moverFoco(slotProps.index, $event, 'cantidad_ajuste')"
+                    :ref="'cantidad_ajuste-' + slotProps.index"
+                  />
+                </template>
+              </Column>
+              <Column field="stock_restante" header="Stock Ajustado">
+                <template #body="slotProps">
+                  <span
+                    class="badge"
+                    :class="slotProps.data.stock_restante < 0 ? 'badge-danger' : 'badge-success'"
+                  >
+                    {{ slotProps.data.stock_restante }}
+                  </span>
+                </template>
+              </Column>
+              <Column header="Acciones">
+                <template #body="slotProps">
+                  <Button
+                    icon="pi pi-trash"
+                    class="p-button-danger p-button-sm"
+                    @click="eliminarProducto(slotProps.index)"
+                    title="Eliminar producto"
+                  />
+                </template>
+              </Column>
+            </DataTable>
+
+            <!-- Resumen de Totales -->
+            <div class="mt-3 p-3" style="background-color: #f8f9fa; border-radius: 5px;">
+              <div class="row" style="display: flex; justify-content: space-between;">
+                <div class="col-md-4">
+                  <strong><i class="pi pi-shopping-cart"></i> Productos: {{ productosSeleccionados.length }}</strong>
+                </div>
+                <div class="col-md-4">
+                  <strong><i class="pi pi-box"></i> Total Unidades: {{ totalUnidadesAjuste }}</strong>
                 </div>
               </div>
             </div>
           </div>
-        </div>  
-      </form>
-      
-      <template #footer>
-        <Button
-          label="Cerrar"
-          icon="pi pi-times"
-          class="p-button-danger p-button-sm"
-          @click="cerrarModal"
-          type="button"
-        />
-        <Button
-          v-if="tipoAccion == 1"
-          class="p-button-success p-button-sm"
-          label="Procesar Ajuste"
-          icon="pi pi-check"
-          @click="enviarFormulario"
-          type="button"
-          :disabled="!hayProductosSeleccionados || !puedeEnviarFormulario()"
-          :loading="isLoading"
-        />
-      </template>
-    </Dialog>
+        </div>
 
-    <Dialog
-      :visible.sync="modal2"
-      modal
-      :header="tituloModal2"
-      :closable="true"
-      @hide="cerrarModal2"
-      class="responsive-dialog"
-      :containerStyle="dialogContainerStyle"
-    >
-      <div class="toolbar-container">
+        <!-- Botones de Acción -->
+        <div class="row mt-3">
+          <div class="col-md-6 d-flex justify-content-start">
+            <Button
+              label="Exportar PDF"
+              icon="pi pi-file-pdf"
+              class="p-button-danger"
+              @click="exportarPDF"
+              :disabled="productosSeleccionados.length === 0"
+            />
+          </div>
+          <div class="col-md-6 d-flex justify-content-end">
+            <Button
+              label="Cancelar"
+              icon="pi pi-times"
+              class="p-button-danger mr-2"
+              @click="confirmarCancelar"
+            />
+            <Button
+              label="Procesar Ajuste"
+              icon="pi pi-check"
+              class="p-button-success"
+              @click="enviarFormulario"
+              :disabled="!puedeEnviarFormulario()"
+              :loading="isLoading"
+            />
+          </div>
+        </div>
+      </form>
+    </Panel>
+
+    <Panel v-if="vistaActual === 'tabla'">
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <div style="display: flex; align-items: center;">
+            <i class="pi pi-list mr-2"></i>
+            <h4 class="panel-title mb-0">AJUSTE DE INVENTARIO</h4>
+          </div>
+          <Button
+            label="Nuevo Ajuste"
+            icon="pi pi-plus"
+            class="p-button-success"
+            @click="vistaActual = 'formulario'"
+          />
+        </div>
+      </template>
+      <div class="mt-3">
+              <div class="toolbar-container">
         <div class="search-bar">
-          <span class="p-input-icon-left">
+            <span class="p-input-icon-left">
+              <i class="pi pi-search" />
+              <InputText v-model="buscar" class="form-control" placeholder="Texto a buscar" />
+            </span>
+          </div>
+          <div class="toolbar">
+            <Button
+              label="Reset"
+              icon="pi pi-refresh"
+              @click="resetBusquedaProductos"
+              class="p-button-help p-button-sm"
+              title="Limpiar"
+              :disabled="!proveedorSeleccionado || !proveedorSeleccionado.nombre"
+            />          
+          </div>
+        </div>
+        <DataTable :value="arrayAjuste" class="p-datatable-sm p-datatable-gridlines" responsiveLayout="scroll">
+          <Column field="nombre_almacen" header="ALMACEN" />
+          <Column field="nombre" header="ARTICULO" />
+          <Column field="cantidad" header="CANTIDAD" />
+          <Column field="tipo" header="TIPO BAJA" />
+          <Column field="created_at" header="FECHA Y HORA" />
+        </DataTable>
+        <Paginator :rows="pagination.per_page" :totalRecords="pagination.total"
+          :first="(pagination.current_page - 1) * pagination.per_page" @page="onPageChange" />
+      </div>
+    </Panel>
+
+    <Sidebar
+        :visible.sync="dialogoProductosVisible"
+        position="right"
+        header="Agregar Productos"
+        :style="{ width: '90vw', maxWidth: '800px', marginTop: '78px' }"
+        appendTo="body"
+        @show="enfocarInputBusqueda"
+        @hide="limpiarBusqueda"
+      >
+      <div class="search-and-buttons p-mb-3 p-d-flex p-flex-column p-flex-md-row p-gap-2">
+        <div class="search-bar p-flex-grow-1">
+          <span class="p-input-icon-left p-w-full">
             <i class="pi pi-search" />
             <InputText
-              v-if="tituloModal2 == 'Motivo'"
+              ref="inputBusqueda"
               v-model="buscarA"
-              @keyup="listarMotivo(1, buscarA, criterioA)"
-              class="form-control"
-              placeholder="Buscar motivo..."
-            />
-            <InputText
-              v-if="tituloModal2 == 'Productos'"
-              v-model="buscarA"
-              @keyup="
-                listarProducto(
-                  1,
-                  buscarA,
-                  criterioA,
-                  idAlmacenSeleccionado,
-                  false
-                )
-              "
-              class="form-control"
-              placeholder="Buscar producto..."
+              class="form-control p-w-full"
+              placeholder="Texto a buscar"
+              @keyup="filtrarProductos"
             />
           </span>
         </div>
-
-        <div class="toolbar">
+        <div class="p-d-flex p-gap-2">
           <Button
-            v-if="tituloModal2 == 'Motivo'"
-            :label="mostrarLabel ? 'Reset' : ''"
+            label="Reset"
             icon="pi pi-refresh"
-            @click="
-              buscarA = '';
-              listarMotivo(1, '', criterioA);
-            "
-            title="Limpiar"
+            @click="resetBusquedaProductos"
             class="p-button-help p-button-sm"
+            title="Limpiar"
+            :disabled="!buscarA"
           />
           <Button
-            v-show="tituloModal2 == 'Motivo'"
-            :label="mostrarLabel ? 'Nuevo' : ''"
+            label="Agregar Todos"
             icon="pi pi-plus"
-            class="p-button-secondary p-button-sm"
-            @click="abrirModal3('Marca', 'registrarMar')"
+            class="p-button-success p-button-sm"
+            @click="agregarTodosProductos"
+            :disabled="!proveedorSeleccionado.id || arrayBuscador.length === 0"
           />
-
           <Button
-            v-if="tituloModal2 == 'Productos'"
-            :label="mostrarLabel ? 'Reset' : ''"
-            icon="pi pi-refresh"
-            class="p-button-help p-button-sm"
-            @click="
-              buscarA = '';
-              listarProducto(1, '', criterioA, idAlmacenSeleccionado, false);
-            "
-            title="Limpiar"
+            label="Escanear Código"
+            icon="pi pi-qrcode"
+            class="p-button-info p-button-sm"
+            @click="iniciarEscaneo"
           />
         </div>
       </div>
 
-      <div class="table-responsive">
+      <!-- Tabla de productos -->
+      <div class="table-responsive" style="margin-top: 2%">
         <DataTable
-          v-if="tituloModal2 == 'Productos'"
           :value="arrayBuscador"
           class="p-datatable-sm p-datatable-gridlines"
           responsiveLayout="scroll"
         >
-          <Column header="Seleccionar" style="width: 10%">
+          <!-- Columnas de la tabla (sin cambios) -->
+          <Column header="Seleccionar" style="width: 12%">
             <template #body="slotProps">
               <Button
-                :icon="productosSeleccionados.find(p => p.id === slotProps.data.id) ? 'pi pi-check-circle' : 'pi pi-plus-circle'"
-                :class="productosSeleccionados.find(p => p.id === slotProps.data.id) ? 'p-button-success' : 'p-button-primary'"
-                class="p-button-sm"
-                @click="seleccionar(slotProps.data)"
-                :disabled="productosSeleccionados.find(p => p.id === slotProps.data.id)"
-                :title="productosSeleccionados.find(p => p.id === slotProps.data.id) ? 'Ya seleccionado' : 'Seleccionar producto'"
+                icon="pi pi-plus"
+                class="p-button-primary p-button-sm"
+                @click="seleccionarProducto(slotProps.data)"
+                :disabled="productosSeleccionados.some(p => p.id === slotProps.data.id)"
+                :title="productosSeleccionados.some(p => p.id === slotProps.data.id) ? 'Ya seleccionado' : 'Agregar producto'"
               />
             </template>
           </Column>
-          <Column field="codigo" header="Código" />
           <Column field="nombre" header="Producto">
             <template #body="slotProps">
               <div>
@@ -347,19 +347,85 @@
               </div>
             </template>
           </Column>
-          <Column field="stock_total" header="Stock Disponible">
+          <Column field="stock_total" header="Stock Total">
             <template #body="slotProps">
               <span class="badge badge-primary">{{ slotProps.data.stock_total || 0 }}</span>
             </template>
           </Column>
         </DataTable>
-        
+      </div>
+
+      <!-- Paginador -->
+      <Paginator
+        :rows="pagination.per_page"
+        :totalRecords="pagination.total"
+        :first="(pagination.current_page - 1) * pagination.per_page"
+        @page="(event) => {
+          const page = Math.floor(event.first / event.rows) + 1;
+          listarProducto(page, buscarA, criterioA, idAlmacenSeleccionado, false, proveedorSeleccionado ? proveedorSeleccionado.id : null);
+        }"
+        class="p-mt-3"
+      />
+    </Sidebar>
+
+    <Dialog
+      :visible.sync="dialogoEscaneoVisible"
+      modal
+      header="Escaneo de Código de Barras"
+      :style="{ width: '95vw', maxWidth: '500px' }"
+      :closable="true"
+      @hide="cerrarEscaneo"
+      class="responsive-dialog"
+    >
+      <div style="position: relative; width: 100%; height: 80vh; background-color: #000;">
+        <p style="position: absolute; top: 10px; left: 0; right: 0; color: white; text-align: center; z-index: 100;">
+          Apunta la cámara al código de barras
+        </p>
+        <div id="escaneo-camara" style="width: 100%; height: 100%;"></div>
+      </div>
+    </Dialog>
+
+    <!-- MODAL PARA SELECCIONAR MOTIVOS -->
+    <Dialog
+      :visible.sync="modal2"
+      modal
+      :header="tituloModal2"
+      :closable="true"
+      @hide="cerrarModal2"
+      class="responsive-dialog"
+      :containerStyle="dialogContainerStyle"
+    >
+      <!-- Contenido del modal -->
+      <div class="toolbar-container">
+        <div class="search-bar">
+          <span class="p-input-icon-left">
+            <i class="pi pi-search" />
+            <InputText
+              v-model="buscarA"
+              @keyup="listarMotivo(1, buscarA, criterioA)"
+              class="form-control"
+              placeholder="Buscar motivo..."
+            />
+          </span>
+        </div>
+        <div class="toolbar">
+          <Button
+            label="Reset"
+            icon="pi pi-refresh"
+            @click="resetBusquedaMotivos"
+            class="p-button-help p-button-sm"
+            title="Limpiar"
+          />
+        </div>
+      </div>
+
+      <div class="table-responsive">
         <DataTable
-          v-else-if="tituloModal2 == 'Motivo'"
           :value="arrayBuscador"
           class="p-datatable-sm p-datatable-gridlines"
           responsiveLayout="scroll"
         >
+          <!-- Columnas de la tabla de motivos -->
           <Column header="Seleccionar" style="width: 15%">
             <template #body="slotProps">
               <Button
@@ -373,38 +439,13 @@
         </DataTable>
       </div>
 
-      <div v-if="tituloModal2 == 'Motivo'">
-        <Paginator
-          :rows="pagination.per_page"
-          :totalRecords="pagination.total"
-          :first="(pagination.current_page - 1) * pagination.per_page"
-          @page="
-            (event) => {
-              const page = Math.floor(event.first / event.rows) + 1;
-              cambiarPaginaMarca(page, buscar, criterio);
-            }
-          "
-        />
-      </div>
-      <div v-else-if="tituloModal2 == 'Productos'">
-        <Paginator
-          :rows="pagination.per_page"
-          :totalRecords="pagination.total"
-          :first="(pagination.current_page - 1) * pagination.per_page"
-          @page="
-            (event) => {
-              const page = Math.floor(event.first / event.rows) + 1;
-              listarProducto(
-                page,
-                buscarA,
-                criterio,
-                idAlmacenSeleccionado,
-                false
-              );
-            }
-          "
-        />
-      </div>
+      <Paginator
+        :rows="pagination.per_page"
+        :totalRecords="pagination.total"
+        :first="(pagination.current_page - 1) * pagination.per_page"
+        @page="onPageChange"
+      />
+
       <template #footer>
         <Button
           label="Cerrar"
@@ -416,6 +457,7 @@
       </template>
     </Dialog>
 
+    <!-- MODAL PARA REGISTRAR NUEVO MOTIVO -->
     <Dialog
       :visible.sync="modal3"
       modal
@@ -425,12 +467,10 @@
       class="responsive-dialog"
       :containerStyle="dialogContainerStyle"
     >
+      <!-- Contenido del modal -->
       <div v-if="tituloModal2 !== 'Proveedors'">
         <form class="form-horizontal">
-          <div
-            v-if="tituloModal2 !== 'Grupos' && tituloModal2 !== 'Lineas'"
-            class="form-group row"
-          >
+          <div v-if="tituloModal2 !== 'Grupos' && tituloModal2 !== 'Lineas'" class="form-group row">
             <label class="col-md-3 form-control-label" for="text-input">
               Nombre
             </label>
@@ -486,6 +526,8 @@ import Paginator from "primevue/paginator";
 import { esquemaArticulos, esquemaInventario } from "../constants/validations";
 import VueBarcode from "vue-barcode";
 import Panel from "primevue/panel";
+import Sidebar from 'primevue/sidebar';
+import AutoComplete from 'primevue/autocomplete';
 
 export default {
   components: {
@@ -498,6 +540,8 @@ export default {
     Paginator,
     barcode: VueBarcode,
     Panel,
+    Sidebar,
+    AutoComplete,
   },
   data() {
     return {
@@ -587,7 +631,7 @@ export default {
       tipoAccion: 0,
       tipoAccion2: 0,
       //------registro industia, marcas--
-      modal3: 0,
+      modal3: false,
       tituloModal3: "",
       marca_id: 0,
       condicion: 1,
@@ -608,6 +652,15 @@ export default {
 
       descripcion_medida: "",
       medidaseleccionada: [],
+      // NUEVO REFACTORIZACION AJUSTES
+      dialogoProductosVisible: false,
+      proveedorSeleccionado: { nombre: '' }, 
+      proveedoresFiltrados: [],
+      mostrarDesplegableProveedor: false,
+      indiceSeleccionadoProveedor: -1,
+      dialogoEscaneoVisible: false,
+      indiceFoco: -1,
+      vistaActual: 'tabla',
     };
   },
   computed: {
@@ -697,6 +750,26 @@ export default {
       this.buscar = "";
       this.listarAjuste(1, this.buscar || "", "", this.categoria);
     },
+
+    resetBusquedaProductos() {
+      this.buscarA = '';
+      let idProveedor = null;
+      if (this.proveedorSeleccionado && this.proveedorSeleccionado.id) {
+        idProveedor = this.proveedorSeleccionado.id;
+      }
+      this.listarProducto(1, '', this.criterioA, this.idAlmacenSeleccionado, false, idProveedor);
+    },
+
+    enfocarInputBusqueda() {
+      this.$nextTick(() => {
+        if (this.$refs.inputBusqueda && this.$refs.inputBusqueda.$el) {
+          this.$refs.inputBusqueda.$el.focus();
+        } else {
+          console.error('No se encontró el elemento input');
+        }
+      });
+    },
+
     handleResize() {
       this.mostrarLabel = window.innerWidth > 768; // cambia según breakpoint deseado
     },
@@ -746,34 +819,106 @@ export default {
     },
 
     async enviarFormulario() {
-      const productosConCantidad = this.productosSeleccionados.filter(producto => {
-        const cantidad = parseInt(producto.cantidad_ajuste) || 0;
-        return cantidad > 0;
+      console.log('Productos seleccionados antes de enviar:', this.productosSeleccionados);
+
+      // Validar que al menos un producto tenga stock real ingresado
+      const productosConStockReal = this.productosSeleccionados.filter(producto => {
+        const stockReal = parseInt(producto.stock_real) || 0;
+        return stockReal >= 0;
       });
 
-      // Validar que las cantidades no excedan el stock
-      const productosInvalidos = productosConCantidad.filter(producto => {
-        const cantidad = parseInt(producto.cantidad_ajuste) || 0;
-        return cantidad > producto.stock_actual;
+      if (productosConStockReal.length === 0) {
+        this.toastError("Debe ingresar el stock real para al menos un producto");
+        return;
+      }
+
+      // Validar que el stock real no sea mayor al stock actual
+      const productosInvalidos = productosConStockReal.filter(producto => {
+        const stockReal = parseInt(producto.stock_real) || 0;
+        return stockReal > producto.stock_actual;
       });
 
       if (productosInvalidos.length > 0) {
-        this.toastError("Algunos productos tienen cantidades mayores al stock actual");
+        this.toastError("Algunos productos tienen stock real mayor al stock actual");
+        return;
+      }
+
+      // Validar que se haya seleccionado un motivo de baja
+      if (!this.motivoseleccionado || !this.motivoseleccionado.id) {
+        this.toastError("Debe seleccionar un motivo de baja");
         return;
       }
 
       try {
-        // Actualizar temporalmente productosSeleccionados solo con los que tienen cantidad
-        const productosOriginales = [...this.productosSeleccionados];
-        this.productosSeleccionados = productosConCantidad;
-        
-        await this.registrarAjusteMultiple();
-        
-        this.productosSeleccionados = productosOriginales;
-        
+        this.isLoading = true;
+
+        // Preparar los datos para enviar al backend
+        const ajustesData = {
+          almacen_id: this.idAlmacenSeleccionado,
+          motivo_id: this.motivoseleccionado.id,
+          productos: this.productosSeleccionados.map(producto => {
+            const stockReal = parseInt(producto.stock_real) || 0;
+            const cantidadAjuste = producto.stock_actual - stockReal;
+            const fechaVencimiento = producto.fecha_vencimiento_seleccionada ? producto.fecha_vencimiento_seleccionada.fecha_vencimiento : null;
+
+            return {
+              producto_id: producto.id,
+              cantidad: cantidadAjuste,
+              stock_anterior: producto.stock_actual,
+              stock_real: stockReal,
+              fecha_vencimiento: fechaVencimiento
+            };
+          }).filter(producto => producto.cantidad > 0) // Filtrar productos con cantidad de ajuste mayor a 0
+        };
+
+        console.log('Datos que se envían al backend:', ajustesData);
+
+        await this.registrarAjusteMultiple(ajustesData);
+
+        this.$toast.add({
+          severity: 'success',
+          summary: 'Éxito',
+          detail: 'El ajuste de inventario se realizó correctamente.',
+          life: 1500
+        });
+
+        // Limpiar los datos de la vista actual
+        this.productosSeleccionados = [];
+        this.motivoseleccionado = { nombre: '' };
+        this.proveedorSeleccionado = { nombre: '' };
+        this.buscarA = '';
+
+        // Cambiar a la vista de tabla después de 1.5 segundos
+        setTimeout(() => {
+          this.vistaActual = 'tabla';
+        }, 1500);
+
       } catch (error) {
-        console.error("Error al registrar el ajuste múltiple:", error);
+        console.error("Error al registrar el ajuste múltiple: ", error);
+        let mensajeError = 'Error al registrar el ajuste. Por favor, inténtelo de nuevo.';
+        if (error.response) {
+          if (error.response.status === 422) {
+            mensajeError = 'Error de validación. Por favor, revise los datos ingresados.';
+          } else if (error.response.status === 500) {
+            mensajeError = 'Error interno del servidor. Por favor, contacte al soporte técnico.';
+          } else {
+            mensajeError = `Error ${error.response.status}: ${error.response.data.message || 'Ocurrió un error inesperado.'}`;
+          }
+        }
+        this.$toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: mensajeError,
+          life: 5000
+        });
+      } finally {
+        this.isLoading = false;
       }
+    },
+
+    guardarYVolver() {
+      this.enviarFormulario(); 
+      this.vistaActual = 'tabla';
     },
 
     obtenerConfiguracionTrabajo() {
@@ -844,31 +989,49 @@ export default {
       this.buscarA = "";
     },
 
-    async listarProducto(
-      page,
-      buscar,
-      criterio,
-      idAlmacen,
-      showLoading = true
-    ) {
-      try {
-        if (showLoading) this.isLoading = true; // Activar loading solo si se pide
-        let me = this;
-        let url = `/articuloAjusteInven?page=${page}&buscar=${buscar}&criterio=${criterio}&idAlmacen=${idAlmacen}&categoria=${me.categoriaSeleccionada}`;
-
-        const response = await axios.get(url);
-        me.arrayBuscador = response.data.articulos.data;
-        me.pagination = response.data.pagination;
-      } catch (error) {
-        console.error("Error al listar los productos:", error);
-        swal("Error", "No se pudieron cargar los productos", "error");
-      } finally {
-        if (showLoading) {
-          setTimeout(() => {
-            this.isLoading = false; // Desactivar loading
-          }, 500);
+    confirmarCancelar() {
+      this.$swal.fire({
+        title: '¿Está seguro que desea cancelar?',
+        text: 'Se perderán todos los cambios.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, cancelar',
+        cancelButtonText: 'No'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.reiniciarFormulario();
         }
+      });
+    },
+
+    reiniciarFormulario() {
+      this.idAlmacenSeleccionado = null;
+      this.proveedorSeleccionado = { nombre: '' };
+      this.motivoseleccionado = {};
+      this.productosSeleccionados = [];
+      this.buscarA = '';
+      this.arrayBuscador = [];
+      this.vistaActual = 'tabla';
+    },
+
+    listarProducto(page, buscar, criterio, idAlmacen, todos, idProveedor) {
+      let me = this;
+      let url = `/articuloAjusteInven?page=${page}&buscar=${buscar}&criterio=${criterio}&idAlmacen=${idAlmacen}`;
+      if (idProveedor) {
+        url += `&idProveedor=${idProveedor}`;
       }
+      axios
+        .get(url)
+        .then(function(response) {
+          var respuesta = response.data;
+          me.arrayBuscador = respuesta.articulos.data;
+          me.pagination = respuesta.pagination;
+        })
+        .catch(function(error) {
+          console.log("Error al listar los productos:", error);
+        });
     },
 
     seleccionarCategoria(categoria) {
@@ -893,6 +1056,40 @@ export default {
         .catch(function(error) {
           console.log(error);
         });
+    },
+
+
+    abrirDialogoProductos() {
+      this.dialogoProductosVisible = true;
+      let idProveedor = null;
+      if (this.proveedorSeleccionado && this.proveedorSeleccionado.id) {
+        idProveedor = this.proveedorSeleccionado.id;
+      }
+      this.listarProducto(1, this.buscarA, this.criterioA, this.idAlmacenSeleccionado, false, idProveedor);
+    },
+
+
+    //FALTA CODIGO PARA QUE FUNCIONE EL ESCANEO DEL CODIGO DE BARRAS
+
+    esDispositivoMovil() {
+
+    },
+
+
+    iniciarEscaneo() {
+
+    },
+
+    iniciarQuagga() {
+ 
+    },
+
+    onDetected(result) {
+
+    },
+
+    cerrarEscaneo() {
+
     },
 
     abrirModal2(titulo) {
@@ -1077,9 +1274,18 @@ export default {
       }
     },
 
+    filtrarProductos() {
+      this.listarProducto(1, this.buscarA, this.criterioA, this.idAlmacenSeleccionado, false, this.proveedorSeleccionado ? this.proveedorSeleccionado.id : null);
+    },
+    
+    limpiarBusqueda() {
+      this.buscarA = "";
+      this.resetBusquedaProductos();
+    },
+
     filtrarPorCategoria(categoria) {
-      this.categoria = categoria; // Establece la categoría seleccionada
-      this.listarAjuste(1, this.buscar, ""); // Recarga la lista con la categoría aplicada
+      this.categoria = categoria; 
+      this.listarAjuste(1, this.buscar, "");
     },
 
     listarMarca(page, buscar, criterio) {
@@ -1116,6 +1322,104 @@ export default {
           console.log("ERRORES", error);
         });
     },
+
+    buscarProveedores(event) {
+      const query = event.target.value;
+      if (!query.trim().length) {
+        this.proveedoresFiltrados = [];
+        this.mostrarDesplegableProveedor = false;
+        return;
+      }
+      axios.get(`/proveedor/selectNombreProveedor?filtro=${query}`)
+        .then(response => {
+          this.proveedoresFiltrados = response.data.proveedores;
+          this.mostrarDesplegableProveedor = this.proveedoresFiltrados.length > 0;
+        })
+        .catch(error => {
+          console.error("Error al buscar proveedores:", error);
+        });
+    },
+
+    moverSeleccionProveedor(direccion) {
+      if (!this.mostrarDesplegableProveedor || this.proveedoresFiltrados.length === 0) return;
+      if (direccion === 'abajo') {
+        this.indiceSeleccionadoProveedor = (this.indiceSeleccionadoProveedor + 1) % this.proveedoresFiltrados.length;
+      } else if (direccion === 'arriba') {
+        this.indiceSeleccionadoProveedor = (this.indiceSeleccionadoProveedor - 1 + this.proveedoresFiltrados.length) % this.proveedoresFiltrados.length;
+      }
+    },
+
+    seleccionarProveedorConEnter() {
+      if (this.indiceSeleccionadoProveedor >= 0 && this.indiceSeleccionadoProveedor < this.proveedoresFiltrados.length) {
+        this.seleccionarProveedor(this.proveedoresFiltrados[this.indiceSeleccionadoProveedor]);
+      }
+    },
+
+    seleccionarProveedor(proveedor) {
+      this.proveedorSeleccionado = { id: proveedor.id, nombre: proveedor.nombre };
+      this.mostrarDesplegableProveedor = false;
+    },
+
+    resetBusquedaProductos() {
+      this.buscarA = '';
+      let idproveedor = null;
+      if (this.proveedorSeleccionado && this.proveedorSeleccionado.id) {
+        idproveedor = this.proveedorSeleccionado.id;
+      }
+      this.listarProducto(1, '', this.criterioA, this.idAlmacenSeleccionado, false, idproveedor);
+    },
+
+    resetBusquedaMotivos() {
+      this.buscarA = '';
+      this.listarMotivo(1, '', this.criterioA);
+    },
+
+    agregarTodosProductos() {
+      const productosFiltrados = this.arrayBuscador.filter(
+        producto => !this.productosSeleccionados.some(p => p.id === producto.id)
+      );
+
+      productosFiltrados.forEach(producto => {
+        // Obtener la fecha de vencimiento más cercana
+        const fechaVencimientoMasCercana = producto.fechas_vencimiento && producto.fechas_vencimiento.length > 0
+          ? producto.fechas_vencimiento.reduce((prev, curr) =>
+              new Date(prev.fecha_vencimiento) < new Date(curr.fecha_vencimiento) ? prev : curr
+            )
+          : null;
+
+        this.productosSeleccionados.push({
+          ...producto,
+          fecha_vencimiento_seleccionada: fechaVencimientoMasCercana,
+          cantidad_ajuste: 0,
+          stock_restante: producto.stock_total,
+          stock_actual: producto.stock_total,
+          stock_real: 0
+        });
+      });
+
+      this.$toast.add({ severity: 'success', summary: 'Éxito', detail: 'Productos agregados' });
+    },
+        
+    seleccionarProducto(producto) {
+      // Obtener la fecha de vencimiento más cercana (si existe)
+      const fechaVencimientoMasCercana = producto.fechas_vencimiento && producto.fechas_vencimiento.length > 0
+        ? producto.fechas_vencimiento[0]
+        : null;
+
+      // Verificar si el producto ya está seleccionado
+      const productoExistente = this.productosSeleccionados.find(p => p.id === producto.id);
+      if (!productoExistente) {
+        this.productosSeleccionados.push({
+          ...producto,
+          fecha_vencimiento_seleccionada: fechaVencimientoMasCercana,
+          cantidad_ajuste: 0,
+          stock_restante: producto.stock_total,
+          stock_actual: producto.stock_total
+        });
+        this.$toast.add({ severity: 'success', summary: 'Éxito', detail: 'Producto agregado' });
+      }
+    },
+
 
     cambiarPagina(page) {
       let me = this;
@@ -1175,13 +1479,48 @@ export default {
         this.stock_restante = 0;
       } finally {
         setTimeout(() => {
-          this.isLoading = false; // Desactivar loading
+          this.isLoading = false;
         }, 500);
       }
     },
     actualizarStock() {
       const cantidad = parseInt(this.datosFormulario.cantidad) || 0;
       this.stock_restante = Math.max(0, this.stock_actual - cantidad);
+    },
+
+        calcularDiferencia(producto) {
+      if (producto.stock_real !== undefined && producto.stock_real !== null) {
+        const stockReal = Number(producto.stock_real);
+        const stockActual = Number(producto.stock_actual);
+        producto.cantidad_ajuste = stockActual - stockReal;
+        producto.stock_restante = stockReal;
+      }
+    },
+
+    moverFoco(index, event, tipoCampo) {
+      event.preventDefault();
+      const totalProductos = this.productosSeleccionados.length;
+      let nuevoIndice = index + 1;
+
+      if (nuevoIndice >= totalProductos) {
+        nuevoIndice = 0;
+      }
+
+      this.$nextTick(() => {
+        let inputRef;
+        if (tipoCampo === 'stock_real') {
+          inputRef = this.$refs[`cantidad_ajuste-${nuevoIndice}`];
+        } else if (tipoCampo === 'cantidad_ajuste') {
+          inputRef = this.$refs[`stock_real-${nuevoIndice}`];
+        }
+
+        if (inputRef && inputRef[0]) {
+          const inputElement = inputRef[0].$el.querySelector('input');
+          if (inputElement) {
+            inputElement.focus();
+          }
+        }
+      });
     },
 
     calcularPrecioValorMoneda(precio) {
@@ -1264,7 +1603,7 @@ export default {
           switch (accion) {
             case "registrar": {
               this.modal = 1;
-              this.tituloModal = "REGISTRAR AJUSTE DE INVENTARIO";
+              this.tituloModal = "AJUSTE DE INVENTARIO";
               this.tipoAccion = 1;
               this.fotografia = "";
 
@@ -1348,6 +1687,33 @@ export default {
     recuperarIdRol() {
       this.rolUsuario = window.userData.rol;
     },
+
+    exportarPDF() {
+      this.isLoading = true;
+      axios.post('/ajustes-inventario/exportar-pdf', {
+        productos: this.productosSeleccionados,
+        almacen: this.idAlmacenSeleccionado,
+        motivo: this.motivoseleccionado.nombre
+      }, {
+        responseType: 'blob'
+      })
+      .then(response => {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'ajuste_inventario.pdf');
+        document.body.appendChild(link);
+        link.click();
+        this.$toast.add({ severity: 'success', summary: 'Éxito', detail: 'PDF generado correctamente' });
+      })
+      .catch(error => {
+        console.error("Error al generar el PDF:", error);
+        this.$toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo generar el PDF' });
+      })
+      .finally(() => {
+        this.isLoading = false;
+      });
+    },
   },
   async mounted() {
     this.handleResize();
@@ -1371,6 +1737,106 @@ export default {
 };
 </script>
 <style scoped>
+
+.p-d-flex .p-button-sm {
+  margin: 0 1%;
+}
+
+.form-control input {
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #495057;
+  background-color: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+}
+
+.form-control input:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.mr-2 {
+  margin-right: 10px;
+}
+
+#escaneo-camara {
+  width: 100%;
+  height: 400px;
+  background-color: #000;
+}
+
+.input-con-desplegable {
+  position: relative;
+  width: 100%;
+}
+
+.input-con-desplegable {
+  position: relative;
+  width: 100%;
+}
+
+.desplegable-simple {
+  position: absolute;
+  background: white;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  z-index: 1000;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.desplegable-simple li {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.desplegable-simple li:hover, .desplegable-simple li.seleccionado {
+  background-color: #f0f0f0;
+}
+
+/* Estilos para el botón "Agregar Producto" */
+.d-flex.align-items-end {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 0.5rem;
+}
+
+/* Estilos para el Panel */
+.panel-header {
+  padding: 1rem;
+}
+
+/* Asegura que la máscara cubra toda la pantalla */
+.p-sidebar-mask {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(0, 0, 0, 0.35) !important; /* opcional, para que se note */
+  z-index: 99998 !important; /* debajo del sidebar */
+}
+
+/* Sidebar por encima de la máscara */
+.p-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+}
+
+
 /* Arreglar icono de lupa - Centrado perfecto */
 .search-bar .p-input-icon-left {
   position: relative;
@@ -1401,29 +1867,30 @@ export default {
   display: flex;
   align-items: center;
 }
+
 .panel-title {
   margin: 0;
   padding-left: 5px;
 }
 
 /* Responsive Dialog Styles */
-.responsive-dialog >>> .p-dialog {
+.responsive-dialog>>>.p-dialog {
   margin: 0.75rem;
   max-height: 90vh;
   overflow-y: auto;
 }
 
-.responsive-dialog >>> .p-dialog-content {
+.responsive-dialog>>>.p-dialog-content {
   overflow-x: auto;
   padding: 0.75rem 1rem;
 }
 
-.responsive-dialog >>> .p-dialog-header {
+.responsive-dialog>>>.p-dialog-header {
   padding: 0.75rem 1.5rem;
   font-size: 1.1rem;
 }
 
-.responsive-dialog >>> .p-dialog-footer {
+.responsive-dialog>>>.p-dialog-footer {
   padding: 0.5rem 1.5rem;
   gap: 0.5rem;
   flex-wrap: wrap;
@@ -1458,11 +1925,11 @@ export default {
 }
 
 /* Formulario compacto - Reducir espacios entre campos */
-.form-compact >>> .p-field {
+.form-compact>>>.p-field {
   margin-bottom: 0.25rem !important;
 }
 
->>> .p-fluid .p-field {
+>>>.p-fluid .p-field {
   margin-bottom: 0.25rem;
 }
 
@@ -1497,42 +1964,42 @@ export default {
 }
 
 /* DataTable Responsive */
->>> .p-datatable {
+>>>.p-datatable {
   font-size: 0.9rem;
 }
 
->>> .p-datatable .p-datatable-tbody > tr > td {
+>>>.p-datatable .p-datatable-tbody>tr>td {
   padding: 0.5rem;
   word-break: break-word;
   text-align: left;
 }
 
->>> .p-datatable .p-datatable-thead > tr > th {
+>>>.p-datatable .p-datatable-thead>tr>th {
   padding: 0.75rem 0.5rem;
   font-size: 0.85rem;
 }
 
 /* Form Grid Responsive */
->>> .p-formgrid.p-grid {
+>>>.p-formgrid.p-grid {
   margin: 0;
 }
 
->>> .p-formgrid .p-field {
+>>>.p-formgrid .p-field {
   padding: 0.5rem;
 }
 
 /* Tablet Styles */
 @media (max-width: 1024px) {
-  .responsive-dialog >>> .p-dialog {
+  .responsive-dialog>>>.p-dialog {
     margin: 0.5rem;
     max-height: 95vh;
   }
 
-  >>> .p-datatable {
+  >>>.p-datatable {
     font-size: 0.85rem;
   }
 
-  >>> .p-formgrid .p-field.p-col-12.p-md-6 {
+  >>>.p-formgrid .p-field.p-col-12.p-md-6 {
     width: 100% !important;
     flex: 0 0 100% !important;
   }
@@ -1544,21 +2011,21 @@ export default {
     display: none;
   }
 
-  .responsive-dialog >>> .p-dialog {
+  .responsive-dialog>>>.p-dialog {
     margin: 0.25rem;
     max-height: 98vh;
   }
 
-  .responsive-dialog >>> .p-dialog-content {
+  .responsive-dialog>>>.p-dialog-content {
     padding: 0.5rem 0.75rem;
   }
 
-  .responsive-dialog >>> .p-dialog-header {
+  .responsive-dialog>>>.p-dialog-header {
     padding: 0.5rem 1rem;
     font-size: 1rem;
   }
 
-  .responsive-dialog >>> .p-dialog-footer {
+  .responsive-dialog>>>.p-dialog-footer {
     padding: 0.4rem 1rem;
     justify-content: flex-end;
   }
@@ -1567,25 +2034,25 @@ export default {
     gap: 0.5rem;
   }
 
-  >>> .p-datatable {
+  >>>.p-datatable {
     font-size: 0.8rem;
   }
 
-  >>> .p-datatable .p-datatable-tbody > tr > td {
+  >>>.p-datatable .p-datatable-tbody>tr>td {
     padding: 0.4rem 0.3rem;
   }
 
-  >>> .p-datatable .p-datatable-thead > tr > th {
+  >>>.p-datatable .p-datatable-thead>tr>th {
     padding: 0.5rem 0.3rem;
     font-size: 0.75rem;
   }
 
-  >>> .p-formgrid .p-field {
+  >>>.p-formgrid .p-field {
     padding: 0.25rem;
     margin-bottom: 0.4rem !important;
   }
 
-  >>> .p-formgrid .p-field label {
+  >>>.p-formgrid .p-field label {
     font-size: 0.9rem;
     margin-bottom: 0.25rem;
   }
@@ -1599,22 +2066,22 @@ export default {
     font-size: 0.6rem;
   }
 
-  >>> .p-inputtext,
-  >>> .p-dropdown,
-  >>> .p-inputnumber-input,
-  >>> .p-multiselect,
-  >>> .p-inputtextarea {
+  >>>.p-inputtext,
+  >>>.p-dropdown,
+  >>>.p-inputnumber-input,
+  >>>.p-multiselect,
+  >>>.p-inputtextarea {
     font-size: 0.9rem;
     padding: 0.5rem;
   }
 
-  >>> .p-button-sm {
+  >>>.p-button-sm {
     font-size: 0.75rem !important;
     padding: 0.375rem 0.5rem !important;
     min-width: auto !important;
   }
 
-  .toolbar >>> .p-button-sm {
+  .toolbar>>>.p-button-sm {
     font-size: 0.75rem !important;
     padding: 0.375rem 0.5rem !important;
   }
@@ -1622,6 +2089,70 @@ export default {
   .search-bar .p-inputtext-sm {
     padding: 0.35rem 0.5rem 0.35rem 2.5rem !important;
     font-size: 0.85rem !important;
+  }
+  .p-sidebar {
+    width: 100vw !important;
+    max-width: 100% !important;
+  }
+
+  /* Buscador */
+  .search-bar {
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+
+  .search-bar .p-input-icon-left {
+    width: 100%;
+  }
+
+  .search-bar .form-control {
+    width: 100%;
+  }
+
+  /* Botones del toolbar */
+  .toolbar {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .toolbar > div {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .toolbar .p-d-flex.p-gap-2 {
+    justify-content: flex-end;
+  }
+
+  /* Botones de Exportar PDF, Cancelar y Procesar Ajuste */
+  .row.mt-3 [class*="col-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+    margin-bottom: 0.75rem;
+  }
+
+  .row.mt-3 .d-flex.justify-content-start,
+  .row.mt-3 .d-flex.justify-content-end {
+    justify-content: center !important;
+  }
+
+  .row.mt-3 .p-button {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .search-and-buttons {
+    flex-direction: column !important;
+  }
+
+  .search-and-buttons .p-d-flex.p-gap-2 {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .search-and-buttons .p-button {
+    flex: 1;
   }
 }
 
@@ -1631,26 +2162,26 @@ export default {
     display: none;
   }
 
-  .responsive-dialog >>> .p-dialog {
+  .responsive-dialog>>>.p-dialog {
     margin: 0.1rem;
     max-height: 99vh;
   }
 
-  .responsive-dialog >>> .p-dialog-content {
+  .responsive-dialog>>>.p-dialog-content {
     padding: 0.4rem 0.5rem;
   }
 
-  .responsive-dialog >>> .p-dialog-header {
+  .responsive-dialog>>>.p-dialog-header {
     padding: 0.4rem 0.75rem;
     font-size: 0.95rem;
   }
 
-  .responsive-dialog >>> .p-dialog-footer {
+  .responsive-dialog>>>.p-dialog-footer {
     padding: 0.3rem 0.75rem;
     justify-content: flex-end;
   }
 
-  .responsive-dialog >>> .p-dialog-footer .p-button {
+  .responsive-dialog>>>.p-dialog-footer .p-button {
     width: auto;
     margin-bottom: 0.25rem;
   }
@@ -1670,7 +2201,7 @@ export default {
     min-width: 0;
   }
 
-  .toolbar >>> .p-button-sm {
+  .toolbar>>>.p-button-sm {
     font-size: 0.75rem !important;
     padding: 0.375rem 0.5rem !important;
   }
@@ -1680,25 +2211,25 @@ export default {
     font-size: 0.8rem !important;
   }
 
-  >>> .p-datatable {
+  >>>.p-datatable {
     font-size: 0.75rem;
   }
 
-  >>> .p-datatable .p-datatable-tbody > tr > td {
+  >>>.p-datatable .p-datatable-tbody>tr>td {
     padding: 0.3rem 0.2rem;
   }
 
-  >>> .p-datatable .p-datatable-thead > tr > th {
+  >>>.p-datatable .p-datatable-thead>tr>th {
     padding: 0.4rem 0.2rem;
     font-size: 0.7rem;
   }
 
-  >>> .p-formgrid .p-field {
+  >>>.p-formgrid .p-field {
     padding: 0.2rem;
     margin-bottom: 0.3rem !important;
   }
 
-  >>> .p-formgrid .p-field label {
+  >>>.p-formgrid .p-field label {
     font-size: 0.85rem;
   }
 
@@ -1710,16 +2241,16 @@ export default {
     font-size: 0.55rem;
   }
 
-  >>> .p-inputtext,
-  >>> .p-dropdown,
-  >>> .p-inputnumber-input,
-  >>> .p-multiselect,
-  >>> .p-inputtextarea {
+  >>>.p-inputtext,
+  >>>.p-dropdown,
+  >>>.p-inputnumber-input,
+  >>>.p-multiselect,
+  >>>.p-inputtextarea {
     font-size: 0.85rem;
     padding: 0.4rem;
   }
 
-  >>> .p-tag {
+  >>>.p-tag {
     font-size: 0.7rem;
     padding: 0.2rem 0.4rem;
   }
@@ -1727,18 +2258,18 @@ export default {
 
 /* Paginator Responsive */
 @media (max-width: 768px) {
-  >>> .p-paginator {
+  >>>.p-paginator {
     flex-wrap: wrap !important;
     justify-content: center;
     font-size: 0.85rem;
     padding: 0.5rem;
   }
 
-  >>> .p-paginator .p-paginator-page,
-  >>> .p-paginator .p-paginator-next,
-  >>> .p-paginator .p-paginator-prev,
-  >>> .p-paginator .p-paginator-first,
-  >>> .p-paginator .p-paginator-last {
+  >>>.p-paginator .p-paginator-page,
+  >>>.p-paginator .p-paginator-next,
+  >>>.p-paginator .p-paginator-prev,
+  >>>.p-paginator .p-paginator-first,
+  >>>.p-paginator .p-paginator-last {
     min-width: 32px !important;
     height: 32px !important;
     font-size: 0.85rem !important;
@@ -1748,16 +2279,16 @@ export default {
 }
 
 @media (max-width: 480px) {
-  >>> .p-paginator {
+  >>>.p-paginator {
     font-size: 0.8rem;
     padding: 0.4rem;
   }
 
-  >>> .p-paginator .p-paginator-page,
-  >>> .p-paginator .p-paginator-next,
-  >>> .p-paginator .p-paginator-prev,
-  >>> .p-paginator .p-paginator-first,
-  >>> .p-paginator .p-paginator-last {
+  >>>.p-paginator .p-paginator-page,
+  >>>.p-paginator .p-paginator-next,
+  >>>.p-paginator .p-paginator-prev,
+  >>>.p-paginator .p-paginator-first,
+  >>>.p-paginator .p-paginator-last {
     min-width: 28px !important;
     height: 28px !important;
     font-size: 0.8rem !important;
@@ -1767,12 +2298,12 @@ export default {
 }
 
 /* Action Buttons in DataTable */
->>> .p-datatable .p-button {
+>>>.p-datatable .p-button {
   margin-right: 0.25rem;
 }
 
 @media (max-width: 768px) {
-  >>> .p-datatable .p-button {
+  >>>.p-datatable .p-button {
     margin-right: 0.15rem;
     margin-bottom: 0.15rem;
   }
@@ -1822,6 +2353,7 @@ export default {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -1830,23 +2362,28 @@ export default {
 .p-dialog-mask {
   z-index: 9990 !important;
 }
+
 .p-dialog {
   z-index: 9990 !important;
 }
+
 /*Panel*/
 .ingreso-panel {
   margin-bottom: 1rem;
 }
+
 .panel-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
 }
+
 .panel-icon {
   color: #000000;
   font-size: 1.2rem;
 }
+
 .panel-title {
   margin: 0;
   font-size: 1.1rem;
@@ -1855,15 +2392,17 @@ export default {
 }
 
 /* Panel Content Spacing */
->>> .p-panel .p-panel-content {
+>>>.p-panel .p-panel-content {
   padding: 1rem;
 }
->>> .p-panel .p-panel-header {
+
+>>>.p-panel .p-panel-header {
   padding: 0.75rem 1rem;
   background: #f8fafc;
   border-bottom: 1px solid #e5e7eb;
 }
->>> .p-panel .p-panel-header .p-panel-title {
+
+>>>.p-panel .p-panel-header .p-panel-title {
   font-weight: 600;
 }
 </style>
