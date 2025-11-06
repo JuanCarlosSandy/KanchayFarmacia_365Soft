@@ -199,7 +199,7 @@
                         </ul>
                     </li>
                     
-                </ul>-->
+                </ul>
 
                 <li class="nav-item nav-dropdown">
                     <a class="nav-link nav-dropdown-toggle" href="#"><i class="icon-info"></i>SIAT</a>
@@ -213,7 +213,7 @@
                         <li @click="menu=37" class="nav-item">
                             <a class="nav-link" href="#"><i class="icon-list" style="font-size: 11px;"></i>Sinc. Unidad Medida</a>
                         </li>
-                    </ul>
+                    </ul>-->
     </nav>
    
 </div>
