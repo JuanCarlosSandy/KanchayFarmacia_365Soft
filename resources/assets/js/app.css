@@ -1,0 +1,106 @@
+.swal2-icon {
+  width: 80px !important;
+  height: 80px !important;
+  font-size: 1.275em !important;
+}
+/* Ajustar el contenedor general del calendario */
+.p-datepicker {
+  min-width: 220px !important;
+  max-width: 240px !important;
+  font-size: 0.8rem !important;
+  padding: 0.25rem !important;
+  box-sizing: border-box;
+  overflow: hidden !important;
+}
+
+/* Reducir paddings de la cabecera */
+.p-datepicker .p-datepicker-header {
+  padding: 0.3rem !important;
+}
+
+/* Ajustar el título (mes y año) */
+.p-datepicker .p-datepicker-title {
+  font-size: 0.8rem !important;
+  gap: 0.25rem !important;
+}
+
+.p-datepicker .p-datepicker-title .p-datepicker-month,
+.p-datepicker .p-datepicker-title .p-datepicker-year {
+  font-size: 0.8rem !important;
+}
+
+/* Ajustar tamaño de botones de navegación */
+.p-datepicker-prev,
+.p-datepicker-next {
+  width: 1.2rem !important;
+  height: 1.2rem !important;
+  font-size: 0.75rem !important;
+}
+
+/* Tamaño de celdas (días y encabezados) */
+.p-datepicker .p-datepicker-calendar td,
+.p-datepicker .p-datepicker-calendar th {
+  padding: 0.2rem !important;
+  text-align: center;
+}
+
+.p-datepicker .p-datepicker-calendar td span {
+  font-size: 0.7rem !important; /* MÁS PEQUEÑO el número */
+  width: 1.5rem !important;     /* MÁS angosto */
+  height: 1.5rem !important;    /* MÁS bajo */
+  line-height: 1.5rem !important;
+  border-radius: 50% !important;
+}
+
+/* Estilo para el día de hoy */
+.p-datepicker .p-datepicker-calendar td.p-datepicker-today > span {
+  border: 1px solid #2196F3 !important;
+}
+
+/* Estilo para el día seleccionado */
+.p-datepicker .p-datepicker-calendar td.p-highlight > span {
+  background: #2196F3 !important;
+  color: white !important;
+}
+
+/* Evitar que el calendario se desborde en modales u otros contenedores */
+.p-datepicker {
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+/*Panel*/
+.ingreso-panel {
+  margin-bottom: 1rem;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+.panel-icon {
+  color: #000000;
+  font-size: 1.2rem;
+}
+.panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+.swal2-confirm-lineanew {
+  background-color: #22c55e !important;
+  border-color: #22c55e !important;
+  color: #fff !important;
+}
+.swal2-cancel-lineanew {
+  background-color: #ef4444 !important;
+  border-color: #ef4444 !important;
+  color: #fff !important;
+}
+.btn-mini {
+  padding: 0.3rem 0.4rem !important;
+  font-size: 0.75rem !important;
+  width: auto !important;
+  min-width: unset !important;
+}
