@@ -802,16 +802,18 @@ class ArticuloController extends Controller
             return redirect('/');
         }
 
-        $buscar = $request->buscar;
+        $buscar = trim($request->buscar); 
         $idAlmacen = $request->idAlmacen;
         $idProveedor = $request->idProveedor;
 
-        // Query base con joins necesarios
         $query = Articulo::join('categorias', 'articulos.idcategoria', '=', 'categorias.id')
             ->join('proveedores', 'articulos.idproveedor', '=', 'proveedores.id')
             ->join('personas', 'proveedores.id', '=', 'personas.id')
             ->join('medidas', 'articulos.idmedida', '=', 'medidas.id')
-            ->join('inventarios', 'articulos.id', '=', 'inventarios.idarticulo')
+            ->join('inventarios', function ($join) use ($idAlmacen) {
+                $join->on('articulos.id', '=', 'inventarios.idarticulo')
+                    ->where('inventarios.idalmacen', '=', $idAlmacen);
+            })
             ->select(
                 'articulos.id',
                 'articulos.idcategoria',
@@ -832,11 +834,10 @@ class ArticuloController extends Controller
                 'personas.nombre as nombre_proveedor',
                 'articulos.condicion',
                 'articulos.fotografia',
-                DB::raw('SUM(inventarios.saldo_stock) as stock_total')
+                \DB::raw('SUM(inventarios.saldo_stock) as stock_total')
             )
             ->where('articulos.condicion', '=', 1)
-            ->where('inventarios.idalmacen', $idAlmacen)
-            ->where('inventarios.saldo_stock', '>', 0) // Solo productos con stock disponible
+            ->where('inventarios.saldo_stock', '>', 0)
             ->groupBy(
                 'articulos.id',
                 'articulos.idcategoria',
@@ -863,37 +864,31 @@ class ArticuloController extends Controller
             $query->where('articulos.idproveedor', $idProveedor);
         }
 
+        // Filtrar por texto de búsqueda solo si no está vacío
         if (!empty($buscar)) {
-            $palabras = explode(' ', $buscar);
-            $query->where(function ($q) use ($palabras, $buscar) {
-                foreach ($palabras as $palabra) {
-                    $q->where(function ($sub) use ($palabra, $buscar) {
-                        $sub->where('articulos.nombre', 'like', '%' . $palabra . '%')
-                            ->orWhere('articulos.codigo', 'like', '%' . $palabra . '%')
-                            ->orWhere('articulos.codigo_alfanumerico', 'like', '%' . $palabra . '%')
-                            ->orWhere('categorias.nombre', 'like', '%' . $palabra . '%')
-                            ->orWhere('personas.nombre', 'like', '%' . $palabra . '%');
-                    });
+            $palabrasBuscar = array_filter(explode(" ", $buscar));
+            $query->where(function ($query) use ($palabrasBuscar, $buscar) {
+                foreach ($palabrasBuscar as $palabra) {
+                    $query->where('articulos.nombre', 'like', '%' . $palabra . '%');
                 }
+                $query->orWhere('articulos.codigo', 'like', '%' . $buscar . '%')
+                    ->orWhere('articulos.codigo_alfanumerico', 'like', '%' . $buscar . '%')
+                    ->orWhere('categorias.nombre', 'like', '%' . $buscar . '%')
+                    ->orWhere('personas.nombre', 'like', '%' . $buscar . '%');
             });
         }
 
-        // Paginación
         $articulos = $query->orderBy('articulos.id', 'desc')->paginate(6);
 
-        // Obtener fechas de vencimiento y stock para cada artículo
         foreach ($articulos as $articulo) {
-            $fechasVencimiento = \DB::table('inventarios')
-                ->select('fecha_vencimiento', DB::raw('SUM(saldo_stock) as stock'))
+            $lotes = \DB::table('inventarios')
+                ->select('fecha_vencimiento', 'saldo_stock')
                 ->where('idarticulo', $articulo->id)
                 ->where('idalmacen', $idAlmacen)
-                ->whereNotNull('fecha_vencimiento')
                 ->where('saldo_stock', '>', 0)
-                ->groupBy('fecha_vencimiento')
                 ->orderBy('fecha_vencimiento', 'asc')
                 ->get();
-
-            $articulo->fechas_vencimiento = $fechasVencimiento;
+            $articulo->lotes = $lotes;
         }
 
         return [

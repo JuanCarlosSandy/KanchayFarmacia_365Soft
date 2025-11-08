@@ -301,7 +301,6 @@ class AjusteInventarioController extends Controller
         // ENCABEZADO DE TABLA
         $pdf->SetFont('Arial', 'B', 9);
         $pdf->SetFillColor(230, 230, 230);
-
         $pdf->SetX($startX);
         $pdf->Cell(10, 8, '#', 1, 0, 'C', true);
         $pdf->Cell(30, 8, utf8_decode('Código'), 1, 0, 'C', true);
@@ -315,16 +314,23 @@ class AjusteInventarioController extends Controller
         // CUERPO
         $pdf->SetFont('Arial', '', 8);
         $contador = 1;
+
         foreach ($productos as $producto) {
+            // Valida que los campos existan, si no, asigna 0
+            $stockActual = isset($producto['stock_actual']) ? $producto['stock_actual'] : 0;
+            $stockReal = isset($producto['stock_real']) ? $producto['stock_real'] : 0;
+            $cantidadAjuste = $stockActual - $stockReal;
+            $stockRestante = $stockReal; // O calcula según tu lógica
+
             $pdf->SetX($startX);
             $pdf->Cell(10, 7, $contador++, 1, 0, 'C');
-            $pdf->Cell(30, 7, $truncarTexto($pdf, $producto['codigo'], 28), 1);
-            $pdf->Cell(70, 7, $truncarTexto($pdf, $producto['nombre'], 68), 1, 0, 'L');
-            $pdf->Cell(50, 7, $truncarTexto($pdf, $producto['nombre_proveedor'], 48), 1, 0, 'L');
-            $pdf->Cell(25, 7, number_format($producto['stock_actual'], 0, ',', '.'), 1, 0, 'R');
-            $pdf->Cell(25, 7, number_format($producto['stock_real'], 0, ',', '.'), 1, 0, 'R');
-            $pdf->Cell(25, 7, number_format($producto['cantidad_ajuste'], 0, ',', '.'), 1, 0, 'R');
-            $pdf->Cell(25, 7, number_format($producto['stock_restante'], 0, ',', '.'), 1, 1, 'R');
+            $pdf->Cell(30, 7, $truncarTexto($pdf, $producto['codigo'] ?? '', 28), 1);
+            $pdf->Cell(70, 7, $truncarTexto($pdf, $producto['nombre'] ?? '', 68), 1, 0, 'L');
+            $pdf->Cell(50, 7, $truncarTexto($pdf, $producto['nombre_proveedor'] ?? '', 48), 1, 0, 'L');
+            $pdf->Cell(25, 7, number_format($stockActual, 0, ',', '.'), 1, 0, 'R');
+            $pdf->Cell(25, 7, number_format($stockReal, 0, ',', '.'), 1, 0, 'R');
+            $pdf->Cell(25, 7, number_format($cantidadAjuste, 0, ',', '.'), 1, 0, 'R');
+            $pdf->Cell(25, 7, number_format($stockRestante, 0, ',', '.'), 1, 1, 'R');
         }
 
         $nombreArchivo = 'Ajuste_Inventario_' . str_replace(' ', '_', $nombreAlmacen) . '_' . now()->format('d-m-Y') . '.pdf';

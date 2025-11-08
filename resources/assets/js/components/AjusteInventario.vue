@@ -50,6 +50,14 @@
                     placeholder="Buscar proveedor..."
                     class="p-inputtext p-component"
                   />
+                  <!-- Botón para limpiar el proveedor seleccionado -->
+                  <Button
+                    v-if="proveedorSeleccionado.nombre"
+                    icon="pi pi-times"
+                    class="p-button-danger p-button-sm"
+                    @click="limpiarProveedorSeleccionado"
+                    style="margin-left: 5px;"
+                  />
                 </div>
                 <ul v-if="mostrarDesplegableProveedor && proveedoresFiltrados.length > 0" class="desplegable-simple">
                   <li
@@ -278,7 +286,7 @@
         header="Agregar Productos"
         :style="{ width: '90vw', maxWidth: '800px', marginTop: '78px' }"
         appendTo="body"
-        @show="enfocarInputBusqueda"
+        @show="onSidebarShow"
         @hide="limpiarBusqueda"
       >
       <div class="search-and-buttons p-mb-3 p-d-flex p-flex-column p-flex-md-row p-gap-2">
@@ -415,6 +423,13 @@
             @click="resetBusquedaMotivos"
             class="p-button-help p-button-sm"
             title="Limpiar"
+          />
+          <!-- Botón para añadir nuevo motivo -->
+          <Button
+            label="Nuevo Motivo"
+            icon="pi pi-plus"
+            class="p-button-secondary p-button-sm"
+            @click="abrirModalNuevoMotivo"
           />
         </div>
       </div>
@@ -760,6 +775,11 @@ export default {
       this.listarProducto(1, '', this.criterioA, this.idAlmacenSeleccionado, false, idProveedor);
     },
 
+    resetBusquedaMotivos() {
+      this.buscarA = "";
+      this.listarMotivo(1, "", this.criterioA);
+    },
+
     enfocarInputBusqueda() {
       this.$nextTick(() => {
         if (this.$refs.inputBusqueda && this.$refs.inputBusqueda.$el) {
@@ -768,6 +788,11 @@ export default {
           console.error('No se encontró el elemento input');
         }
       });
+    },
+
+    onSidebarShow() {
+      this.actualizarListaProductos(); 
+      this.enfocarInputBusqueda();   
     },
 
     handleResize() {
@@ -1032,6 +1057,16 @@ export default {
         .catch(function(error) {
           console.log("Error al listar los productos:", error);
         });
+    },
+
+    actualizarListaProductos() {
+      const page = 1;
+      const buscar = this.buscarA || ""; 
+      const criterio = this.criterioA || "nombre";
+      const idAlmacen = this.idAlmacenSeleccionado;
+      const idProveedor = this.proveedorSeleccionado ? this.proveedorSeleccionado.id : null;
+
+      this.listarProducto(page, buscar, criterio, idAlmacen, false, idProveedor);
     },
 
     seleccionarCategoria(categoria) {
@@ -1360,6 +1395,12 @@ export default {
       this.mostrarDesplegableProveedor = false;
     },
 
+    limpiarProveedorSeleccionado() {
+      this.proveedorSeleccionado = { id: null, nombre: '' };
+      this.mostrarDesplegableProveedor = false;
+      this.actualizarListaProductos();
+    },
+
     resetBusquedaProductos() {
       this.buscarA = '';
       let idproveedor = null;
@@ -1661,6 +1702,13 @@ export default {
       }
     },
 
+    abrirModalNuevoMotivo() {
+      this.tituloModal3 = "Registrar Nuevo Motivo";
+      this.tipoAccion2 = 5; 
+      this.nombre = ""; 
+      this.modal3 = true; 
+    },
+
     datosConfiguracion() {
       let me = this;
       var url = "/configuracion";
@@ -1690,8 +1738,23 @@ export default {
 
     exportarPDF() {
       this.isLoading = true;
+
+      const productosParaPDF = this.productosSeleccionados.map(producto => {
+        const stockReal = producto.stock_real !== undefined ? parseInt(producto.stock_real) : 0;
+        const stockActual = producto.stock_actual !== undefined ? parseInt(producto.stock_actual) : 0;
+        const cantidadAjuste = stockActual - stockReal;
+        const stockRestante = stockReal; 
+
+        return {
+          ...producto,
+          stock_real: stockReal,
+          cantidad_ajuste: cantidadAjuste,
+          stock_restante: stockRestante,
+        };
+      });
+
       axios.post('/ajustes-inventario/exportar-pdf', {
-        productos: this.productosSeleccionados,
+        productos: productosParaPDF,
         almacen: this.idAlmacenSeleccionado,
         motivo: this.motivoseleccionado.nombre
       }, {
