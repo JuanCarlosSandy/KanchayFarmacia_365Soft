@@ -12886,3 +12886,41 @@ hr.transparent {
 .main{
   margin-top: 22px;
 }
+
+.p-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  height: 100vh !important;
+  width: auto !important;
+  max-width: 800px !important;
+  background: var(--surface-overlay, #fff);
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.3);
+  z-index: 9992 !important; /* 👈 encima del modal (9990) */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.p-sidebar-mask {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  pointer-events: auto;
+  z-index: 9991 !important; 
+  transition: background 0.3s ease;
+}
+
+.p-sidebar-mask.p-component-overlay {
+  pointer-events: auto;
+}
+
+body.p-overflow-hidden {
+  overflow: hidden !important;
+}
+

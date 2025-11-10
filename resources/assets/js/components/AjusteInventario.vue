@@ -284,7 +284,12 @@
         :visible.sync="dialogoProductosVisible"
         position="right"
         header="Agregar Productos"
-        :style="{ width: '90vw', maxWidth: '800px', marginTop: '78px' }"
+        :style="{
+          width: '90vw',
+          maxWidth: '800px',
+          marginTop: '78px',
+          zIndex: 1050    // 👈 aquí lo aumentamos
+        }"
         appendTo="body"
         @show="onSidebarShow"
         @hide="limpiarBusqueda"
@@ -1876,27 +1881,42 @@ export default {
   padding: 1rem;
 }
 
-/* Asegura que la máscara cubra toda la pantalla */
-.p-sidebar-mask {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  background: rgba(0, 0, 0, 0.35) !important; /* opcional, para que se note */
-  z-index: 99998 !important; /* debajo del sidebar */
-}
 
-/* Sidebar por encima de la máscara */
 .p-sidebar {
   position: fixed !important;
   top: 0 !important;
   bottom: 0 !important;
   right: 0 !important;
   height: 100vh !important;
-  z-index: 99999 !important;
+  width: auto !important;
+  max-width: 800px !important;
+  background: var(--surface-overlay, #fff);
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.3);
+  z-index: 9992 !important; /* 👈 encima del modal (9990) */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.p-sidebar-mask {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  pointer-events: auto;
+  z-index: 9991 !important; 
+  transition: background 0.3s ease;
+}
+
+.p-sidebar-mask.p-component-overlay {
+  pointer-events: auto;
+}
+
+body.p-overflow-hidden {
+  overflow: hidden !important;
 }
 
 
@@ -2467,5 +2487,10 @@ export default {
 
 >>>.p-panel .p-panel-header .p-panel-title {
   font-weight: 600;
+}
+body, html {
+  transform: none !important;
+  perspective: none !important;
+  filter: none !important;
 }
 </style>
