@@ -10436,7 +10436,7 @@ base-chart.chart {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin; 
-  scrollbar-color: #000000 transparent; /* color barra | fondo */
+  scrollbar-color: #6c757d transparent; /* color barra | fondo */
 }
 .sidebar .sidebar-nav::-webkit-scrollbar {
   width: 6px;
@@ -10445,8 +10445,8 @@ base-chart.chart {
   background: transparent;
 }
 .sidebar .sidebar-nav::-webkit-scrollbar-thumb {
-  background-color: #000000;
-  border-radius: 3px;
+  background-color: #6c757d;
+    border-radius: 3px;
 }
 .sidebar .nav {
   width: 200px;
