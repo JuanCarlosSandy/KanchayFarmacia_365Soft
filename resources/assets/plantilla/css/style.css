@@ -10434,19 +10434,18 @@ base-chart.chart {
 }
 .sidebar .sidebar-nav {
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   scrollbar-width: thin; 
   scrollbar-color: #6c757d transparent; /* color barra | fondo */
 }
 .sidebar .sidebar-nav::-webkit-scrollbar {
-  width: 6px;
+  width: 1px;
 }
 .sidebar .sidebar-nav::-webkit-scrollbar-track {
   background: transparent;
 }
 .sidebar .sidebar-nav::-webkit-scrollbar-thumb {
-  background-color: #6c757d;
-    border-radius: 3px;
+  background: transparent;
 }
 .sidebar .nav {
   width: 200px;
