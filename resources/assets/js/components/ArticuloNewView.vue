@@ -182,16 +182,30 @@
         </div>
         <div class="form-group row">
           <div class="col-md-6">
-            <label class="font-weight-bold" for="preciounitario">Precio de Compra Unitario
-              <span class="text-danger">*</span></label>
+            <label class="font-weight-bold" for="preciounitario">
+              Precio de Compra Unitario <span class="text-danger">*</span>
+            </label>
             <div class="p-inputgroup">
-              <InputNumber id="preciounitario" v-model="datosFormulario.precio_costo_unid" placeholder="Ej: 12.50"
-                class=" p-inputtext-sm bold-input" mode="decimal" :minFractionDigits="2"
-                :class="{ 'p-invalid': errores.precio_costo_unid }" @input="validarCampo('precio_costo_unid')" />
-              <Button label="Calcular" class="p-button-primary p-button-sm" @click="calcularPrecioCostoUnid" />
+              <InputNumber
+                id="preciounitario"
+                v-model="datosFormulario.precio_costo_unid"
+                placeholder="Ej: 12.50"
+                class="p-inputtext-sm bold-input"
+                mode="decimal"
+                :minFractionDigits="2"
+                :maxFractionDigits="2"
+                :class="{ 'p-invalid': errores.precio_costo_unid }"
+                @input="onCostoChange(); validarCampo('precio_costo_unid')"
+              />
+              <Button
+                label="Calcular"
+                class="p-button-primary p-button-sm"
+                @click="calcularPrecioCostoUnid"
+              />
             </div>
-            <small class="p-error" v-if="errores.precio_costo_unid"><strong>{{ errores.precio_costo_unid
-            }}</strong></small>
+            <small class="p-error" v-if="errores.precio_costo_unid">
+              <strong>{{ errores.precio_costo_unid }}</strong>
+            </small>
           </div>
           <div class="col-md-6">
             <label class="font-weight-bold" for="preciopaquete">Precio de Compra Paquete
@@ -256,27 +270,70 @@
                 }}</strong></small>
           </div>
         </div>
-        <div v-for="(precio, index) in precios" :key="precio.id" class="p-grid p-ai-center p-mb-2 mobile-responsive">
-          <!-- Primera columna -->
-          <div class="p-col-12 custom-precios">
-            <label class="p-mr-2 p-text-bold" style="width: 100%;">{{ precio.nombre_precio }}:</label>
+        <div
+          v-for="(precio, index) in precios"
+          :key="precio.id"
+          class="p-grid p-ai-start p-mb-3 mobile-responsive"
+        >
+          <!-- Etiqueta -->
+          <div class="p-col-12">
+            <label class="p-text-bold">{{ precio.nombre_precio }}:</label>
           </div>
 
-          <!-- Segunda fila para inputs en vista móvil -->
-          <div class="p-col-12 p-md-6 custom-precios">
-            <div class="p-inputgroup p-mr-2" style="width: 100%;">
-              <InputNumber v-if="index === 0" placeholder="Precio" v-model="precio_uno" mode="decimal"
-                :minFractionDigits="2" :maxFractionDigits="2" class="p-inputtext-sm" />
-              <InputNumber v-if="index === 1" placeholder="Precio" v-model="precio_dos" mode="decimal"
-                :minFractionDigits="2" :maxFractionDigits="2" class="p-inputtext-sm" />
-              <InputNumber v-if="index === 2" placeholder="Precio" v-model="precio_tres" mode="decimal"
-                :minFractionDigits="2" :maxFractionDigits="2" class="p-inputtext-sm" />
-              <InputNumber v-if="index === 3" placeholder="Precio" v-model="precio_cuatro" mode="decimal"
-                :minFractionDigits="2" :maxFractionDigits="2" class="p-inputtext-sm" />
-              <span class="p-inputgroup-addon">{{ monedaPrincipal[1] }}</span>
+          <!-- Contenedor de inputs en dos columnas -->
+          <div class="p-col-12">
+            <div class="p-grid">
+              <!-- Campo Precio (6 columnas) -->
+              <div class="p-col-12 p-md-6">
+                <div class="p-inputgroup" style="width: 100%;">
+                  <InputNumber
+                    v-model.number="precio.valor"
+                    placeholder="Precio"
+                    mode="decimal"
+                    :min="0"
+                    :useGrouping="false"
+                    :allowEmpty="true"
+                    :minFractionDigits="2"
+                    :maxFractionDigits="2"
+                    class="p-inputtext-sm w-full"
+                    @input="onPrecioChange(precio)"
+                  />
+                  <span class="p-inputgroup-addon">{{ monedaPrincipal[1] }}</span>
+                </div>
+              </div>
+
+              <!-- Campo Porcentaje (6 columnas) -->
+              <div class="p-col-12 p-md-6">
+                <div class="p-inputgroup" style="width: 100%;">
+                  <InputNumber
+                    v-model.number="precio.porcentaje"
+                    mode="decimal"
+                    :min="0"
+                    :max="100"
+                    :useGrouping="false"
+                    :allowEmpty="true"
+                    :minFractionDigits="2"
+                    :maxFractionDigits="2"
+                    class="p-inputtext-sm w-full"
+                    @input="onPorcentajeChange(precio)"
+                    @keyup="onPorcentajeChange(precio)"
+                  />
+                  <span class="p-inputgroup-addon">%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ⚠️ Mensaje de error (debajo de ambos campos) -->
+            <div
+              v-if="precio.errorVenta"
+              class="p-error-precio"
+              style="display: block; margin-top: 4px; font-size: 0.85rem;"
+            >
+              ⚠️ El precio de venta es menor al costo unitario.
             </div>
           </div>
         </div>
+
       </form>
       <template #footer>
         <Button label="Cerrar" icon="pi pi-times" class="p-button-danger p-button-sm" @click="cerrarModal" />
@@ -480,7 +537,12 @@ export default {
       grupoSeleccionado: [],
       medidaSeleccionado: [],
       almacenSeleccionado: "Almacen Principal",
-      precios: [],
+      precios: [
+        { id: 1, nombre_precio: 'Precio 1', valor: 0, porcentaje: 0, errorVenta: false },
+        { id: 2, nombre_precio: 'Precio 2', valor: 0, porcentaje: 0, errorVenta: false },
+        { id: 3, nombre_precio: 'Precio 3', valor: 0, porcentaje: 0, errorVenta: false },
+        { id: 4, nombre_precio: 'Precio 4', valor: 0, porcentaje: 0, errorVenta: false },
+      ],
       precio_uno: null,
       precio_dos: null,
       precio_tres: null,
@@ -559,6 +621,12 @@ export default {
       ],
     };
   },
+  watch: {
+    'datosFormulario.precio_costo_unid'(nuevoCosto) {
+      if (isNaN(nuevoCosto) || nuevoCosto === null) return;
+      this.onCostoChange();
+    }
+  },
   computed: {
     imagen() {
       return this.fotoMuestra;
@@ -635,6 +703,79 @@ export default {
     },
   },
   methods: {
+    calcularPrecio(porcentaje) {
+      const costo = Number(this.datosFormulario.precio_costo_unid) || 0;
+      const porc = Number(porcentaje);
+
+      if (isNaN(porc) || porc < 0) return costo; // 👈 si es inválido o negativo, retorna el costo
+      return parseFloat((costo + (costo * porc / 100)).toFixed(2));
+    },
+
+    calcularPorcentaje(precioVenta) {
+      const costo = Number(this.datosFormulario.precio_costo_unid) || 0;
+      const venta = Number(precioVenta);
+
+      // ⚠️ Si venta <= costo → 0%
+      if (isNaN(venta) || venta <= costo || costo <= 0) return 0;
+
+      const porcentaje = ((venta - costo) / costo) * 100;
+      return parseFloat(porcentaje.toFixed(2));
+    },
+
+    onPorcentajeChange(precio) {
+      let porc = Number(precio.porcentaje);
+      if (isNaN(porc) || porc < 0) porc = 0;
+
+      const costo = Number(this.datosFormulario.precio_costo_unid) || 0;
+      const nuevoPrecio = parseFloat((costo + (costo * porc / 100)).toFixed(2));
+
+      // ✅ permitir precio igual al costo
+      if (!isNaN(nuevoPrecio) && nuevoPrecio >= costo) {
+        precio.valor = nuevoPrecio;
+        precio.errorVenta = false;
+        this.sincronizarPrecios(precio);
+      } else {
+        precio.valor = costo;
+        precio.porcentaje = 0;
+        precio.errorVenta = nuevoPrecio < costo; // ⚠️ solo marcar si es menor
+      }
+    },
+
+    onPrecioChange(precio) {
+      const costo = Number(this.datosFormulario.precio_costo_unid) || 0;
+      const venta = Number(precio.valor);
+
+      // ✅ permitir igual
+      if (venta >= costo) {
+        precio.porcentaje = this.calcularPorcentaje(venta);
+        precio.errorVenta = false;
+        this.sincronizarPrecios(precio);
+      } else {
+        precio.porcentaje = 0;
+        precio.errorVenta = true;
+        precio.valor = venta < 0 ? 0 : venta;
+      }
+    },
+
+    sincronizarPrecios(precio) {
+      switch (precio.id) {
+        case 1: this.precio_uno = precio.valor; break;
+        case 2: this.precio_dos = precio.valor; break;
+        case 3: this.precio_tres = precio.valor; break;
+        case 4: this.precio_cuatro = precio.valor; break;
+      }
+    },
+
+    onCostoChange() {
+      const costo = Number(this.datosFormulario.precio_costo_unid);
+      if (isNaN(costo)) return;
+      this.precios.forEach(precio => {
+        if (precio.porcentaje > 0) {
+          precio.valor = this.calcularPrecio(precio.porcentaje);
+          this.sincronizarPrecios(precio);
+        }
+      });
+    },
     mostrarDetalles(articulo) {
       this.articuloSeleccionado = articulo;
       this.dialogDetallesVisible = true;
@@ -2059,5 +2200,11 @@ export default {
   display: flex;
   justify-content: center;
   padding-top: 10px;
+}
+.p-error-precio{
+  color: #ddc239; /* rojo elegante */
+  display: block;
+  margin-top: 4px;
+  font-size: 0.85rem;
 }
 </style>
