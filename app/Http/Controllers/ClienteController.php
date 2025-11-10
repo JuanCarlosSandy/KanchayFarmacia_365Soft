@@ -285,40 +285,84 @@ class ClienteController extends Controller
         }
     }
 
-  public function buscarPorDocumento(Request $request)
-    {
-        $busqueda = $request->query('documento');
+public function buscarPorDocumento(Request $request)
+{
+    $busqueda = $request->query('documento');
 
-        if (!$busqueda || trim($busqueda) === '') {
-            return response()->json([], 400); // evita consultas vacías
-        }
-
-        // IDs a excluir (usuarios y proveedores)
-        $idsExcluidos = DB::table('users')->select('id')
-            ->union(DB::table('proveedores')->select('id'));
-
-        // Separa las palabras del texto de búsqueda (soporta “juan sandy 789”)
-        $palabras = preg_split('/\s+/', trim($busqueda));
-
-        $clientes = Persona::whereNotIn('id', $idsExcluidos)
-            ->where(function ($query) use ($palabras) {
-                foreach ($palabras as $palabra) {
-                    $query->where(function ($subquery) use ($palabra) {
-                        $subquery->where('nombre', 'LIKE', "%{$palabra}%")
-                            ->orWhere('num_documento', 'LIKE', "%{$palabra}%")
-                            ->orWhere('telefono', 'LIKE', "%{$palabra}%")
-                            ->orWhere('email', 'LIKE', "%{$palabra}%");
-                    });
-                }
-            })
-            ->limit(10)
-            ->get();
-
-        if ($clientes->isNotEmpty()) {
-            return response()->json($clientes);
-        } else {
-            return response()->json([], 404);
-        }
+    if (!$busqueda || trim($busqueda) === '') {
+        return response()->json([], 400);
     }
+
+    // IDs a excluir (usuarios y proveedores)
+    $idsExcluidos = DB::table('users')->select('id')
+        ->union(DB::table('proveedores')->select('id'));
+
+    $palabras = preg_split('/\s+/', trim($busqueda));
+
+    $clientes = Persona::whereNotIn('id', $idsExcluidos)
+        ->where(function ($query) use ($palabras) {
+            foreach ($palabras as $palabra) {
+                $query->where(function ($subquery) use ($palabra) {
+                    $subquery->where('nombre', 'LIKE', "%{$palabra}%")
+                        ->orWhere('num_documento', 'LIKE', "%{$palabra}%")
+                        ->orWhere('telefono', 'LIKE', "%{$palabra}%")
+                        ->orWhere('email', 'LIKE', "%{$palabra}%");
+                });
+            }
+        })
+        ->limit(10)
+        ->get();
+
+    if ($clientes->isEmpty()) {
+        return response()->json([], 404);
+    }
+
+    // 🔹 Obtener el monto actual de bonificación
+    $montoBonificacion = DB::table('montobonificacion')
+        ->orderBy('fecha_actualizacion', 'desc')
+        ->first();
+
+    $montoMinimo = $montoBonificacion ? (float)$montoBonificacion->monto : 0;
+    $esAcumulativo = $montoBonificacion ? (bool)$montoBonificacion->es_acumulativo : false;
+    $fechaInicio = $montoBonificacion ? $montoBonificacion->fecha_inicio : null;
+    $periodoMeses = $montoBonificacion ? (int)$montoBonificacion->periodo_meses : 1;
+
+    $clientesConMontos = $clientes->map(function ($cliente) use ($montoMinimo, $esAcumulativo, $fechaInicio, $periodoMeses) {
+
+        if (!$esAcumulativo || !$fechaInicio) {
+            // ❌ No acumulativo: todas las ventas activas
+            $totalCompras = DB::table('ventas')
+                ->where('idcliente', $cliente->id)
+                ->where('estado', 1)
+                ->sum('total');
+        } else {
+            // ✅ Acumulativo: calcular solo el periodo actual
+            $fechaActual = now();
+            $inicio = \Carbon\Carbon::parse($fechaInicio);
+
+            // Calcular cuántos periodos de meses han pasado desde fecha_inicio
+            $diffMeses = $inicio->diffInMonths($fechaActual);
+            $periodoActual = intdiv($diffMeses, $periodoMeses); // número de periodos completos
+            $periodoInicio = $inicio->copy()->addMonths($periodoActual * $periodoMeses);
+            $periodoFin = $periodoInicio->copy()->addMonths($periodoMeses)->subDay(); // último día del periodo
+
+            // Sumar solo ventas dentro del periodo actual
+            $totalCompras = DB::table('ventas')
+                ->where('idcliente', $cliente->id)
+                ->where('estado', 1)
+                ->whereBetween('fecha_hora', [$periodoInicio->format('Y-m-d'), $periodoFin->format('Y-m-d')])
+                ->sum('total');
+        }
+
+        $cliente->total_compras = $totalCompras;
+        $cliente->bonificacion_habilitada = $totalCompras >= $montoMinimo;
+        $cliente->monto_requerido = $montoMinimo;
+        $cliente->es_acumulativo = $esAcumulativo;
+
+        return $cliente;
+    });
+
+    return response()->json($clientesConMontos);
+}
 
 }

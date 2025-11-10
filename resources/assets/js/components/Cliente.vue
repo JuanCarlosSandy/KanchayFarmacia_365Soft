@@ -6,6 +6,8 @@
         <div class="loading-text">LOADING...</div>
       </div>
     </div>
+    <Toast :breakpoints="{ '920px': { width: '100%', right: '0', left: '0' } }" style="padding-top: 10px;"
+      appendTo="body" :baseZIndex="99999"></Toast>
     <Panel :toggleable="false" class="cliente-panel">
       <template #header>
         <div class="panel-header">
@@ -28,6 +30,10 @@
         <div class="toolbar">
           <Button icon="pi pi-plus" :label="mostrarLabel ? 'Nuevo' : ''" class="p-button-secondary p-button-sm"
             @click="abrirModal('persona', 'registrar')" />
+
+          <!-- 🟢 Nuevo botón Monto Bonificación -->
+          <Button icon="pi pi-wallet" :label="mostrarLabel ? 'Monto Bonificación' : ''"
+            class="p-button-success p-button-sm ml-2" @click="abrirDialogMontoCliente()" />
         </div>
       </div>
 
@@ -46,21 +52,18 @@
             {{ getDocumentoIdentidad(slotProps.data) }}
           </template>
         </Column>
-  <Column header="Teléfono">
-            <template #body="slotProps">
-              <span v-if="formatTelefono(slotProps.data).existe">
-                {{ formatTelefono(slotProps.data).texto }}
-              </span>
-              <span
-                v-else
-                class="text-red-500 flex items-center gap-1"
-                style="color: rgb(231, 76, 60)"
-              >
-                <i class="pi pi-exclamation-triangle"></i>
-                {{ formatTelefono(slotProps.data).texto }}
-              </span>
-            </template>
-          </Column>   </DataTable>
+        <Column header="Teléfono">
+          <template #body="slotProps">
+            <span v-if="formatTelefono(slotProps.data).existe">
+              {{ formatTelefono(slotProps.data).texto }}
+            </span>
+            <span v-else class="text-red-500 flex items-center gap-1" style="color: rgb(231, 76, 60)">
+              <i class="pi pi-exclamation-triangle"></i>
+              {{ formatTelefono(slotProps.data).texto }}
+            </span>
+          </template>
+        </Column>
+      </DataTable>
     </Panel>
 
     <Dialog :visible.sync="modal" :containerStyle="dialogContainerStyle" :modal="true" class="responsive-dialog">
@@ -119,21 +122,18 @@
             </div>
           </div>
 
-           <div class="p-field input-container">
+          <div class="p-field input-container">
             <label for="complemento" class="optional-field">
               <i class="pi pi-info-circle optional-icon"></i>
               Teléfono
               <span class="p-tag p-tag-secondary">Opcional</span>
             </label>
             <div class="p-inputgroup">
-             <InputText
-              id="telefono"
-              v-model="datosFormulario.telefono"
-            />
+              <InputText id="telefono" v-model="datosFormulario.telefono" />
             </div>
           </div>
 
-            
+
         </div>
       </form>
 
@@ -149,6 +149,91 @@
 
     <Dialog v-if="modalImportar" :visible.sync="modalImportar" :modal="true">
       <ImportarExcelCliente @cerrar="cerrarModalImportar"></ImportarExcelCliente>
+    </Dialog>
+
+    <Dialog header="💰 Configuración de Monto Bonificación" :visible.sync="dialogMontoCliente" :modal="true"
+      :closable="false" :containerStyle="{ width: '420px', borderRadius: '12px', overflow: 'hidden' }">
+
+      <div class="p-fluid p-3" style="background-color: #f9fafb; border-radius: 8px;">
+        <!-- Encabezado descriptivo -->
+        <div class="p-text-center mb-3">
+          <p style="font-size: 14px; color: #6b7280;">
+            Define el monto mínimo de compras y si será acumulativo.
+          </p>
+        </div>
+
+        <!-- Campo Monto -->
+        <div class="p-field mb-3">
+          <label for="monto" style="font-weight: 600; color: #374151;">Monto mínimo de compras</label>
+          <div class="p-inputgroup">
+            <span class="p-inputgroup-addon" style="background-color: #f3f4f6;">Bs</span>
+            <InputNumber id="monto" v-model="montoCliente.monto" mode="currency" currency="BOB" locale="es-BO" :min="0"
+              :maxFractionDigits="2" style="width: 100%;" />
+          </div>
+        </div>
+
+        <!-- Fecha de actualización -->
+        <div class="p-field mb-3">
+          <label style="font-weight: 600; color: #374151;">Última fecha de actualización</label>
+          <InputText v-model="montoCliente.fecha_actualizacion" disabled
+            style="background-color: #f3f4f6; border: none; color: #6b7280; font-size: 14px;" />
+        </div>
+
+        <!-- Switch acumulativo -->
+        <div class="p-field mb-3" style="display: flex; align-items: center; gap: 10px;">
+          <InputSwitch v-model="montoCliente.es_acumulativo" />
+          <label style="font-weight: 600; color: #374151;">¿Periodo de Tiempo?</label>
+        </div>
+
+        <!-- Información adicional -->
+        <div v-if="montoCliente.es_acumulativo" class="p-mt-3"
+          style="background-color: #e0f2fe; padding: 10px; border-radius: 8px; border-left: 4px solid #0284c7;">
+
+          <small style="color: #0369a1; display: block; font-size: 0.9rem;">
+            💡 Cuando el monto tiene <strong>periodo acumulativo</strong>, al finalizar el periodo de tiempo desde la
+            última
+            fecha que se ha actualizado,
+            los montos acumulados se reiniciarán.
+          </small>
+
+          <!-- 🔽 NUEVO CAMPO: fecha de inicio -->
+          <div class="p-field mt-3">
+            <label for="fechaInicio" style="font-weight: 600; color: #0369a1;">Fecha de inicio del periodo</label>
+            <input type="date" id="fechaInicio" v-model="montoCliente.fecha_inicio"
+              style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #f3f4f6;" />
+          </div>
+
+          <!-- 🔽 NUEVO CAMPO: número de meses -->
+          <div class="p-field mt-3">
+            <label for="periodoMeses" style="font-weight: 600; color: #0369a1;">Periodo de acumulación (en
+              meses)</label>
+            <div class="p-inputgroup">
+              <InputNumber id="periodoMeses" v-model="montoCliente.periodo_meses" :min="1" :maxFractionDigits="0"
+                placeholder="Ej. 3" style="width: 100%;" />
+              <span class="p-inputgroup-addon" style="background-color: #e0f2fe;">meses</span>
+            </div>
+            <small style="color: #0369a1;">Indica cada cuántos meses se acumularán las compras.</small>
+          </div>
+        </div>
+
+        <div v-else class="p-mt-3"
+          style="background-color: #fee2e2; padding: 10px; border-radius: 8px; border-left: 4px solid #dc2626;">
+          <small style="color: #991b1b; display: block; font-size: 0.9rem;">
+            ⚠️ Cuando el monto <strong>no tiene periodo de acumulación</strong>, los clientes cuando lleguen al monto
+            minimo, sus compras seguran acumulandose.
+          </small>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <template #footer>
+        <div class="p-d-flex p-jc-end p-ai-center" style="gap: 8px;">
+          <Button label="Cancelar" icon="pi pi-times" class="p-button-text p-button-sm" style="color: #6b7280;"
+            @click="dialogMontoCliente = false" />
+          <Button label="Guardar cambios" icon="pi pi-check" class="p-button-success p-button-sm"
+            style="border-radius: 6px;" @click="guardarMontoCliente" />
+        </div>
+      </template>
     </Dialog>
   </main>
 </template>
@@ -166,6 +251,10 @@ import AutoComplete from "primevue/autocomplete";
 import Dialog from "primevue/dialog";
 import Paginator from "primevue/paginator";
 import Message from "primevue/message";
+import InputNumber from "primevue/inputnumber";
+import InputSwitch from "primevue/inputswitch";
+import ToastService from 'primevue/toastservice';
+import Toast from 'primevue/toast';
 import { esquemaCliente } from "../constants/validations";
 
 export default {
@@ -181,9 +270,22 @@ export default {
     Dialog,
     Paginator,
     Message,
+    InputSwitch,
+    InputNumber,
+    ToastService,
+    Toast
   },
   data() {
     return {
+      dialogMontoCliente: false,
+      montoCliente: {
+        id: null,
+        monto: 0,
+        fecha_actualizacion: "",
+        es_acumulativo: false,
+        periodo_meses: null, // nuevo campo
+        fecha_inicio: "", // nuevo campo
+      },
       mostrarLabel: true,
       isLoading: false,
       tipoDocumentoOptions: [
@@ -251,7 +353,58 @@ export default {
     },
   },
   methods: {
-       formatTelefono(data) {
+    async cargarMontoCliente() {
+      try {
+        const response = await axios.get("/monto-bonificacion");
+        if (response.data.length > 0) {
+          const registro = response.data[0]; // Solo existe uno
+          this.montoCliente = {
+            id: registro.id,
+            monto: registro.monto,
+            fecha_actualizacion: registro.fecha_actualizacion,
+            es_acumulativo: !!registro.es_acumulativo,
+            periodo_meses: registro.periodo_meses || 1, // 🔹 Nuevo campo, por defecto 1 mes
+            fecha_inicio: registro.fecha_inicio,
+          };
+        }
+      } catch (error) {
+        console.error("Error al cargar monto:", error);
+      }
+    },
+
+    abrirDialogMontoCliente() {
+      if (!this.montoCliente.fecha_actualizacion) {
+        this.montoCliente.fecha_actualizacion = new Date().toISOString().slice(0, 10);
+      }
+      this.dialogMontoCliente = true;
+    },
+
+    async guardarMontoCliente() {
+      try {
+        const formData = {
+          monto: this.montoCliente.monto,
+          fecha_actualizacion: new Date().toISOString().slice(0, 10),
+          fecha_inicio: this.montoCliente.fecha_inicio || null, // 🔹 nuevo campo
+          es_acumulativo: this.montoCliente.es_acumulativo ? 1 : 0,
+          periodo_meses: this.montoCliente.periodo_meses || null, // 🔹 nuevo campo
+        };
+
+        if (this.montoCliente.id) {
+          await axios.put(`/monto-bonificacion/actualizar/${this.montoCliente.id}`, formData);
+          this.$toast.add({ severity: "success", summary: "Actualizado", detail: "Monto actualizado correctamente", life: 3000 });
+        } else {
+          await axios.post("/monto-bonificacion/registrar", formData);
+          this.$toast.add({ severity: "success", summary: "Registrado", detail: "Monto registrado correctamente", life: 3000 });
+        }
+
+        this.dialogMontoCliente = false;
+        this.cargarMontoCliente();
+      } catch (error) {
+        console.error("Error al guardar monto:", error);
+        this.$toast.add({ severity: "error", summary: "Error", detail: "No se pudo guardar el monto", life: 3000 });
+      }
+    },
+    formatTelefono(data) {
       if (data.telefono) {
         return { existe: true, texto: data.telefono };
       }
@@ -593,6 +746,8 @@ export default {
       // Configurar responsividad
       this.handleResize();
       window.addEventListener("resize", this.handleResize);
+      this.cargarMontoCliente(); // cargar al iniciar
+
     } catch (error) {
       console.error("Error en la carga inicial:", error);
       this.$toast.add({

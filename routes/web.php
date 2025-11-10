@@ -950,6 +950,11 @@ Route::group(["middleware" => ["auth"]], function () {
         );
 
         Route::get('/inventario/stockPorSucursal', 'InventarioController@obtenerStockPorSucursal');
+        
+        Route::get('/monto-bonificacion', 'MontoBonificacionController@index');
+        Route::post('/monto-bonificacion/registrar', 'MontoBonificacionController@store');
+        Route::put('/monto-bonificacion/actualizar/{id}', 'MontoBonificacionController@update');
+        Route::delete('/monto-bonificacion/eliminar/{id}', 'MontoBonificacionController@destroy');
 
     });
 

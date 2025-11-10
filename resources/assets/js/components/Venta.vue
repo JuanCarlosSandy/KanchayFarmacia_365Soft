@@ -181,30 +181,45 @@
                   {{ monedaVenta[1] }}
                 </template>
               </Column>
-              <Column header="Descuento">
+              <Column field="cantidad" header="Cantidad"></Column>
+              <Column header="Subtotal sin Descuento">
                 <template #body="slotProps">
                   {{
                     (
-                      slotProps.data.descuento * parseFloat(monedaVenta[0])
+                      slotProps.data.subtotal_sin_descuento * parseFloat(monedaVenta[0])
                     ).toFixed(2)
                   }}
                   {{ monedaVenta[1] }}
                 </template>
               </Column>
-              <Column field="cantidad" header="Cantidad"></Column>
-              <Column header="Subtotal">
+              <Column header="Descuento">
+                <template #body="slotProps">
+                  {{ slotProps.data.descuento }}% =
+                  {{
+                    (slotProps.data.descuento_monto * parseFloat(monedaVenta[0])).toFixed(2)
+                  }}
+                  {{ monedaVenta[1] }}
+                </template>
+              </Column>
+              <Column field="subtotal" header="Subtotal">
                 <template #body="slotProps">
                   {{
-                    (
-                      (slotProps.data.precio * slotProps.data.cantidad -
-                        (slotProps.data.descuento || 0)) *
-                      parseFloat(monedaVenta[0])
-                    ).toFixed(2)
+                    (slotProps.data.subtotal * parseFloat(monedaVenta[0])).toFixed(2)
                   }}
                   {{ monedaVenta[1] }}
                 </template>
               </Column>
             </DataTable>
+            <div class="p-text-right p-mb-3">
+              <strong>SubTotal General:
+                {{ (subtotalVista * parseFloat(monedaVenta[0])).toFixed(2) }}
+                {{ monedaVenta[1] }}</strong>
+            </div>
+            <div class="p-text-right p-mb-3">
+              <strong>Descuento Adicional:
+                {{ (descuentoAdicionalvista * parseFloat(monedaVenta[0])).toFixed(2) }}
+                {{ monedaVenta[1] }}</strong>
+            </div>
             <div class="p-text-right p-mb-3">
               <strong>Total Neto:
                 {{ (total * parseFloat(monedaVenta[0])).toFixed(2) }}
@@ -299,6 +314,12 @@
                       <label for="telefonoCliente" style="top: -8px; font-size: 0.875rem;">Teléfono</label>
                     </span>
                   </div>
+
+                  <!-- 🔹 Estado de bonificación solo si está habilitado -->
+                  <div v-if="habilitacionpromocion" class="mensaje-bonificacion-activa"
+                    style="margin-top: 0.5rem; padding: 8px 12px; border-radius: 6px; font-weight: 600; display: inline-block;">
+                    Cliente habilitado para bonificación ✅
+                  </div>
                 </div>
               </div>
               <div class="p-col-12 p-md-6 d-flex flex-column justify-content-start">
@@ -319,30 +340,49 @@
                   </div>
                   <div v-if="opcionPago === 'efectivo'" class="mt-2">
                     <div class="card mb-2" style="font-size: 0.75rem;">
-                      <div
-                        class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center">
-                        <div class="w-100 mb-2 mb-md-0">
-                          <label for="montoEfectivo" class="mb-0"><i class="fa fa-money mr-2"></i> Monto
-                            Recibido:</label>
+                      <div class="card-body d-flex flex-column"> <!-- columna siempre -->
+
+                        <!-- 🔹 Descuento al Total -->
+                        <div class="form-group mb-3">
+                          <label for="descuentoTotal" class="font-weight-bold">
+                            <i class="fa fa-percent mr-2"></i> Descuento al Total:
+                          </label>
                           <div class="input-group">
                             <div class="input-group-prepend">
-                              <span class="input-group-text">{{
-                                monedaVenta[1]
-                              }}</span>
+                              <span class="input-group-text">%</span>
+                            </div>
+                            <input type="number" class="form-control" id="descuentoTotal" v-model="descuentoAdicional"
+                              :disabled="!habilitacionpromocion" placeholder="Ingrese el % de descuento" min="0"
+                              max="100" />
+                          </div>
+                        </div>
+
+                        <!-- 🔹 Monto Recibido -->
+                        <div class="form-group mb-3">
+                          <label for="montoEfectivo" class="font-weight-bold">
+                            <i class="fa fa-money mr-2"></i> Monto Recibido:
+                          </label>
+                          <div class="input-group">
+                            <div class="input-group-prepend">
+                              <span class="input-group-text">{{ monedaVenta[1] }}</span>
                             </div>
                             <input type="number" class="form-control" id="montoEfectivo" v-model="recibido"
                               placeholder="Ingrese el monto recibido" />
                           </div>
                         </div>
-                        <div class="w-100 mt-2 mt-md-0">
-                          <label for="cambioRecibir" class="mb-0"><i class="fa fa-exchange mr-2"></i> Cambio a
-                            Entregar:</label>
-                          <input type="text" class="form-control bg-light" id="cambioRecibir" :value="recibido -
-                            calcularTotal * parseFloat(monedaVenta[0])
-                            " readonly />
+
+                        <!-- 🔹 Cambio a Entregar -->
+                        <div class="form-group mb-0">
+                          <label for="cambioRecibir" class="font-weight-bold">
+                            <i class="fa fa-exchange mr-2"></i> Cambio a Entregar:
+                          </label>
+                          <input type="text" class="form-control bg-light" id="cambioRecibir"
+                            :value="recibido - calcularTotal * parseFloat(monedaVenta[0])" readonly />
                         </div>
+
                       </div>
                     </div>
+
                     <div class="card" style="font-size: 0.75rem;">
                       <div class="card-body">
                         <h5 class="mb-2 text-center text-md-left" style="font-size: 0.95rem;">
@@ -492,14 +532,21 @@
                     :ref="'inputCantidad_' + slotProps.index" />
                 </template>
               </Column>
+              <Column field="descuento" header="Descuento (%)" style="width: 10%" class="column-descuento">
+                <template #body="slotProps">
+                  <InputNumber v-model="slotProps.data.descuento" :min="0" :max="100" :step="0.01" :suffix="' %'"
+                    @input="actualizarDetalle(slotProps.index)" class="p-inputtext-sm input-descuento"
+                    style="height: 32px;" mode="decimal" :minFractionDigits="2" />
+                </template>
+              </Column>
               <Column field="total" header="Total" style="width: 15%">
                 <template #body="slotProps">
                   {{
                     (
-                      (slotProps.data.precioseleccionado *
-                        slotProps.data.cantidad -
-                        (slotProps.data.descuento || 0)) *
-                      parseFloat(monedaVenta[0])
+                      (
+                        slotProps.data.precioseleccionado * slotProps.data.cantidad *
+                        (1 - (parseFloat(slotProps.data.descuento || 0) / 100))
+                      ) * parseFloat(monedaVenta[0])
                     ).toFixed(2)
                   }}
                   {{ monedaVenta[1] }}
@@ -834,6 +881,8 @@ export default {
   },
   data() {
     return {
+      totalComprasCliente: 0,
+      habilitacionpromocion: false,
       dialogStockVisible: false,
       stockPorSucursal: [],
       articuloSeleccionado: null,
@@ -942,6 +991,9 @@ export default {
       tipo_documento: 1,
       complemento_id: "",
       descuentoAdicional: 0.0,
+      descuentoAdicionalvista: "",
+      descuentoTotalDetalle: "",
+      subtotalVista: "",
       descuentoGiftCard: "",
       tipo_comprobante: "FACTURA",
       serie_comprobante: "",
@@ -1044,6 +1096,7 @@ export default {
       modalPago: false,
       idventaa: null,
       totalReservaSeleccionada: 0,
+      totaldescuentoseleccionada: 0,
       ventaSeleccionada: null,
       tiposPago: {
         EFECTIVO: 1,
@@ -1098,16 +1151,30 @@ export default {
 
     calcularTotal() {
       let resultado = 0.0;
+
       for (let i = 0; i < this.arrayDetalle.length; i++) {
         let detalle = this.arrayDetalle[i];
 
         let subtotal = detalle.precioseleccionado * detalle.cantidad;
-        let descuento = parseFloat(detalle.descuento) || 0;
-        let totalDetalle = subtotal - descuento;
+
+        // 🔹 Descuento por producto en porcentaje
+        let porcentajeDescuento = parseFloat(detalle.descuento) || 0;
+        if (porcentajeDescuento > 100) porcentajeDescuento = 100;
+        let montoDescuento = subtotal * (porcentajeDescuento / 100);
+
+        let totalDetalle = subtotal - montoDescuento;
         if (totalDetalle < 0) totalDetalle = 0;
+
         resultado += totalDetalle;
       }
-      resultado -= this.descuentoAdicional || 0;
+
+      // 🔹 Aplicar descuento adicional en porcentaje sobre el total acumulado
+      if (this.descuentoAdicional) {
+        let porcentajeAdicional = parseFloat(this.descuentoAdicional) || 0;
+        if (porcentajeAdicional > 100) porcentajeAdicional = 100;
+        resultado -= resultado * (porcentajeAdicional / 100);
+      }
+
       return resultado;
     },
 
@@ -1129,6 +1196,28 @@ export default {
   },
 
   methods: {
+    calcularSubtotal() {
+  let subtotal = 0.0;
+
+  for (let i = 0; i < this.arrayDetalle.length; i++) {
+    let detalle = this.arrayDetalle[i];
+
+    // 🔹 Calcular descuento como porcentaje
+    const precio = parseFloat(detalle.precioseleccionado) || 0;
+    const cantidad = parseFloat(detalle.cantidad) || 0;
+    const porcentajeDescuento = parseFloat(detalle.descuento) || 0;
+
+    const totalBruto = precio * cantidad;
+    const montoDescuento = totalBruto * (porcentajeDescuento / 100);
+    let totalDetalle = totalBruto - montoDescuento;
+
+    if (totalDetalle < 0) totalDetalle = 0;
+
+    subtotal += totalDetalle;
+  }
+
+  return subtotal;
+},
     handleClickFuera: function (event) {
       // 🔹 Solo hacer algo si el desplegable está visible
       if (!this.mostrarDesplegable) return;
@@ -1429,33 +1518,43 @@ export default {
     actualizarDetalle(index) {
       let detalle = this.arrayDetalle[index];
       let producto = this.arrayProductos[index];
+
       producto.cantidad = detalle.cantidad;
       producto.precioUnitario = detalle.precioseleccionado;
+
       let subtotal = detalle.cantidad * producto.precioUnitario;
-      let descuento = parseFloat(detalle.descuento) || 0;
-      let totalConDescuento = subtotal - descuento;
+
+      // 🔹 Descuento como porcentaje
+      let porcentajeDescuento = parseFloat(detalle.descuento) || 0;
+      if (porcentajeDescuento > 100) porcentajeDescuento = 100; // limitar a 100%
+      let montoDescuento = subtotal * (porcentajeDescuento / 100);
+
+      let totalConDescuento = subtotal - montoDescuento;
       if (totalConDescuento < 0) totalConDescuento = 0;
+
       producto.subTotal = totalConDescuento;
+
+      // Guardar el monto real del descuento en otra propiedad (opcional)
+      detalle.montoDescuento = montoDescuento.toFixed(2);
+      producto.montoDescuento = montoDescuento.toFixed(2);
+
       if (
-        this.arrayDetalle[index] &&
-        typeof this.arrayDetalle[index].precioseleccionado !== "undefined" &&
-        typeof this.arrayDetalle[index].cantidad !== "undefined"
+        detalle &&
+        typeof detalle.precioseleccionado !== "undefined" &&
+        typeof detalle.cantidad !== "undefined"
       ) {
-        this.arrayDetalle[index].total = totalConDescuento.toFixed(2);
+        detalle.total = totalConDescuento.toFixed(2);
+
         const productoIndex = this.arrayProductos.findIndex(
-          (producto) => producto.id === this.arrayDetalle[index].id
+          (p) => p.id === detalle.id
         );
         if (productoIndex !== -1) {
-          this.arrayProductos[productoIndex].precio = parseFloat(
-            this.arrayDetalle[index].precioseleccionado
-          ).toFixed(2);
+          this.arrayProductos[productoIndex].precio = parseFloat(detalle.precioseleccionado).toFixed(2);
         }
-        this.calcularTotal(); // recalcular el total general
+
+        this.calcularTotal(); // recalcular total general
       } else {
-        console.error(
-          "Datos inválidos en actualizarDetalle para el índice:",
-          index
-        );
+        console.error("Datos inválidos en actualizarDetalle para el índice:", index);
       }
     },
     async verificarComunicacion() {
@@ -1956,9 +2055,19 @@ export default {
 
       if (productoExistente) {
         productoExistente.cantidad += cantidad;
+
+        // 🔹 Recalcular el descuento total en base a la cantidad acumulada
+        const nuevoMontoDescuento =
+          productoExistente.precioUnitario *
+          productoExistente.cantidad *
+          (this.descuentoProducto / 100);
+
+        productoExistente.montoDescuento = nuevoMontoDescuento.toFixed(2);
+
+        // 🔹 Calcular el nuevo subtotal
         productoExistente.subTotal = (
           productoExistente.precioUnitario * productoExistente.cantidad -
-          productoExistente.montoDescuento
+          nuevoMontoDescuento
         ).toFixed(2);
       } else {
         const nuevoProducto = {
@@ -1969,8 +2078,8 @@ export default {
           cantidad: cantidad,
           unidadMedida: this.arraySeleccionado.codigoClasificador,
           precioUnitario: precioUnitario.toFixed(2),
-          montoDescuento: descuento,
-          subTotal: total,
+          montoDescuento: descuento, // 💰 monto del descuento
+          subTotal: total,           // 🧾 total con descuento aplicado
           numeroSerie: null,
           numeroImei: null,
         };
@@ -2211,21 +2320,31 @@ export default {
 
         if (ventaId > 0) {
           // Preparar arrayFactura
-          me.arrayProductos = detalles.map(data => ({
-            actividadEconomica: data.actividadEconomica,
-            codigoProductoSin: data.codigoProductoSin,
-            codigoProducto: data.codigo,
-            descripcion: data.nombre,
-            cantidad: data.cantidad,
-            unidadMedida: data.unidadMedida,
-            precioUnitario: parseFloat(data.precio_venta).toFixed(2),
-            montoDescuento: data.montoDescuento,
-            subTotal: (parseFloat(data.precio_venta) * data.cantidad).toFixed(2),
-            numeroSerie: null,
-            numeroImei: null,
-          }));
+  me.arrayProductos = detalles.map(data => {
+  const precio = parseFloat(data.precio_venta) || 0;
+  const cantidad = parseFloat(data.cantidad) || 0;
+  const descuentoPorcentaje = parseFloat(data.montoDescuento) || 0; // 👈 viene en %
+  
+  // 💰 Calcular el monto real del descuento
+  const montoDescuento = (precio * cantidad * descuentoPorcentaje / 100).toFixed(2);
+  const subTotal = (precio * cantidad - montoDescuento).toFixed(2);
 
-          console.log("Para la Factura: ", me.arrayProductos);
+  return {
+    actividadEconomica: data.actividadEconomica,
+    codigoProductoSin: data.codigoProductoSin,
+    codigoProducto: data.codigo,
+    descripcion: data.nombre,
+    cantidad: cantidad,
+    unidadMedida: data.unidadMedida,
+    precioUnitario: precio.toFixed(2),
+    montoDescuento: montoDescuento, // 💰 monto real del descuento (no porcentaje)
+    subTotal: subTotal,              // 🧾 precio con descuento aplicado
+    numeroSerie: null,
+    numeroImei: null,
+  };
+});
+
+console.log("Para la Factura: ", me.arrayProductos);
 
           if (tipoComprobante === 'FACTURA') {
             me.mostrarDesplegable = false;
@@ -2507,17 +2626,47 @@ export default {
     },
 
     prepararDatosCliente() {
-      if (!this.nombreCliente.trim()) {
+      const nombre = this.nombreCliente ? this.nombreCliente.trim() : "";
+      if (!nombre) {
         this.nombreCliente = "SIN NOMBRE";
         this.documento = "1";
       }
     },
 
     calcularDescuentoTotal() {
-      let descuentoTotal = 0.0;
+      let descuentoPorItems = 0.0;
+      let subtotal = 0.0;
+
+      // 🔹 Recorrer detalles
       for (let i = 0; i < this.arrayDetalle.length; i++) {
-        descuentoTotal += parseFloat(this.arrayDetalle[i].descuento) || 0;
+        let detalle = this.arrayDetalle[i];
+
+        let subtotalDetalle = detalle.precioseleccionado * detalle.cantidad;
+        subtotal += subtotalDetalle;
+
+        // Descuento del ítem (porcentaje)
+        let porcentaje = parseFloat(detalle.descuento) || 0;
+        if (porcentaje > 100) porcentaje = 100;
+
+        let montoDescontado = subtotalDetalle * (porcentaje / 100);
+        descuentoPorItems += montoDescontado;
       }
+
+      // 🔹 Subtotal restante después de los descuentos de ítem
+      let subtotalRestante = subtotal - descuentoPorItems;
+
+      // 🔹 Descuento adicional en porcentaje sobre lo que queda
+      let descuentoAdicionalMonto = 0.0;
+      if (this.descuentoAdicional) {
+        let porcentajeAdicional = parseFloat(this.descuentoAdicional) || 0;
+        if (porcentajeAdicional > 100) porcentajeAdicional = 100;
+
+        descuentoAdicionalMonto = subtotalRestante * (porcentajeAdicional / 100);
+      }
+
+      // 🔹 Total de todos los descuentos (ítems + adicional)
+      let descuentoTotal = descuentoPorItems + descuentoAdicionalMonto;
+
       return descuentoTotal;
     },
 
@@ -2633,7 +2782,11 @@ export default {
         let complemento = null;
         let tipoDocumentoIdentidad = 5;
         let montoTotal = this.calcularTotal.toFixed(2);
-        let descuentoAdicional = this.descuentoAdicional;
+        let porcentajeDescuento = Number(this.descuentoAdicional || 0);
+        let subtotal = this.calcularSubtotal(); // solo suma de ítems
+        console.log("El subtotal es: ", subtotal);
+        let montoDescuentoAdicional = subtotal * (porcentajeDescuento / 100); // monto real
+
         let usuario = this.usuarioAutenticado;
         let codigoPuntoVenta = this.puntoVentaAutenticado;
         let montoGiftCard = this.descuentoGiftCard;
@@ -2701,7 +2854,7 @@ export default {
             tipoCambio: 1,
             montoTotalMoneda: montoTotal,
             montoGiftCard: this.descuentoGiftCard,
-            descuentoAdicional: descuentoAdicional,
+            descuentoAdicional: montoDescuentoAdicional.toFixed(2), // monto en dinero,
             codigoExcepcion: this.codigoExcepcion,
             cafc: null,
             leyenda: this.leyendaAl,
@@ -2859,7 +3012,7 @@ export default {
         let tipoDocumentoIdentidad = 5;
         //let montoTotal = this.calcularTotal.toFixed(2);
         let montoTotal = Number(this.totalReservaSeleccionada).toFixed(2);
-        let descuentoAdicional = this.descuentoAdicional;
+        let descuentoAdicional = Number(this.totaldescuentoseleccionada).toFixed(2);
         let usuario = this.usuarioAutenticado;
         let codigoPuntoVenta = this.puntoVentaAutenticado;
         let montoGiftCard = this.descuentoGiftCard;
@@ -3165,7 +3318,8 @@ export default {
         recibido: 0,
         telefonoClienteEditable: false,
         nombreClienteEditable: false,
-        mensajeRazonSocial: false
+        mensajeRazonSocial: false,
+        habilitacionpromocion: false,
       });
     },
 
@@ -3192,6 +3346,7 @@ export default {
       this.email = null;
       this.idAlmacen = 1;
       this.arrayProductos = [];
+      this.descuentoAdicional = "";
       this.arrayDetalle = [];
       this.precioBloqueado = false;
       this.telefonoClienteEditable = false;
@@ -3215,6 +3370,8 @@ export default {
           me.num_comprobante = arrayVentaT[0]["num_comprobante"];
           me.impuesto = arrayVentaT[0]["impuesto"];
           me.total = arrayVentaT[0]["total"];
+          me.descuentoAdicionalvista = parseFloat(arrayVentaT[0]["descuento_total"]) || 0;
+
         })
         .catch(function (error) {
           console.log(error);
@@ -3225,6 +3382,19 @@ export default {
         .then(function (response) {
           var respuesta = response.data;
           me.arrayDetalle = respuesta.detalles;
+          // Sumar todos los descuentos del detalle
+          me.descuentoTotalDetalle = me.arrayDetalle.reduce((acc, item) => {
+            return acc + (parseFloat(item.descuento_monto) || 0);
+          }, 0);
+
+          // Ajustar descuento adicional real
+          me.descuentoAdicionalvista =
+            (me.descuentoAdicionalvista || 0) - me.descuentoTotalDetalle;
+
+          // Sumar todos los subtotales del detalle
+          me.subtotalVista = me.arrayDetalle.reduce((acc, item) => {
+            return acc + (parseFloat(item.subtotal) || 0);
+          }, 0);
         })
         .catch(function (error) { });
     },
@@ -3311,6 +3481,7 @@ export default {
       this.idtipo_pago = "";
       this.tipoPago = "";
       this.mostrarDesplegable = false;
+      this.habilitacionpromocion = false;
 
       // 🔹 Espera 300 ms y vuelve a abrirlo
       setTimeout(() => {
@@ -3415,6 +3586,9 @@ export default {
       this.telefonoClienteEditable = false;
       this.mostrarDesplegableCliente = false;
       this.mensajeRazonSocial = false; // 🔹 Cliente seleccionado → ocultar mensaje
+      this.totalComprasCliente = cliente.total_compras || 0;
+      this.habilitacionpromocion = cliente.bonificacion_habilitada;
+      console.log("Cliente habilitado:", this.habilitacionpromocion);
     },
 
     moverSeleccionCliente(direccion) {
@@ -3505,6 +3679,7 @@ export default {
             this.ventaSeleccionada = venta;
             console.log("VENTASSELECCIONADA: ", this.ventaSeleccionada);
             this.totalReservaSeleccionada = venta.total || 0;
+            this.totaldescuentoseleccionada = venta.descuento || 0;
             this.modalPago = true;
           } else {
             console.error('Venta no encontrada');

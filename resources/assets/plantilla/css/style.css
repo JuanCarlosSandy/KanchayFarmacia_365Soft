@@ -12924,3 +12924,14 @@ body.p-overflow-hidden {
   overflow: hidden !important;
 }
 
+.mensaje-bonificacion-activa {
+  background-color: #d1fae5; /* verde claro */
+  color: #065f46; /* verde oscuro */
+  border-left: 4px solid #10b981;
+}
+
+.mensaje-bonificacion-inactiva {
+  background-color: #fee2e2; /* rojo claro */
+  color: #991b1b; /* rojo oscuro */
+  border-left: 4px solid #dc2626;
+}

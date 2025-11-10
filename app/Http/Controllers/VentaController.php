@@ -546,6 +546,7 @@ class VentaController extends Controller
         $id = $request->id;
         $venta = Venta::join('personas', 'ventas.idcliente', '=', 'personas.id')
             ->join('users', 'ventas.idusuario', '=', 'users.id')
+            ->leftJoin('facturas', 'ventas.id', '=', 'facturas.idventa') // 👈 LEFT JOIN CON FACTURAS
             ->select(
                 'ventas.id',
                 'ventas.tipo_comprobante',
@@ -556,32 +557,49 @@ class VentaController extends Controller
                 'ventas.total',
                 'ventas.estado',
                 'personas.nombre',
-                'users.usuario'
+                'users.usuario',
+                'ventas.descuento_total',
+                'facturas.descuentoAdicional' // 👈 TRAER EL DESCUENTO ADICIONAL
             )
             ->where('ventas.id', '=', $id)
-            ->orderBy('ventas.id', 'desc')->take(1)->get();
+            ->orderBy('ventas.id', 'desc')
+            ->take(1)
+            ->get();
 
         return ['venta' => $venta];
     }
-    public function obtenerDetalles(Request $request)
-    {
-        if (!$request->ajax())
-            return redirect('/');
+public function obtenerDetalles(Request $request)
+{
+    if (!$request->ajax())
+        return redirect('/');
 
-        $id = $request->id;
-        $detalles = DetalleVenta::join('articulos', 'detalle_ventas.idarticulo', '=', 'articulos.id')
-            ->select(
-                'detalle_ventas.cantidad',
-                'detalle_ventas.precio',
-                'detalle_ventas.descuento',
-                'articulos.nombre as articulo',
-                'articulos.unidad_envase'
-            )
-            ->where('detalle_ventas.idventa', '=', $id)
-            ->orderBy('detalle_ventas.id', 'desc')->get();
+    $id = $request->id;
 
-        return ['detalles' => $detalles];
-    }
+    $detalles = DetalleVenta::join('articulos', 'detalle_ventas.idarticulo', '=', 'articulos.id')
+        ->select(
+            'detalle_ventas.cantidad',
+            'detalle_ventas.precio',
+            'detalle_ventas.descuento', // porcentaje
+            'articulos.nombre as articulo',
+            'articulos.unidad_envase',
+
+            // 🔹 Subtotal sin descuento (2 decimales)
+            DB::raw('ROUND(detalle_ventas.precio * detalle_ventas.cantidad, 2) as subtotal_sin_descuento'),
+
+            // 🔹 Descuento en monto (2 decimales)
+            DB::raw('ROUND((detalle_ventas.precio * detalle_ventas.cantidad) * (detalle_ventas.descuento / 100), 2) as descuento_monto'),
+
+            // 🔹 Subtotal con descuento aplicado (2 decimales)
+            DB::raw('ROUND((detalle_ventas.precio * detalle_ventas.cantidad) - ((detalle_ventas.precio * detalle_ventas.cantidad) * (detalle_ventas.descuento / 100)), 2) as subtotal')
+        )
+        ->where('detalle_ventas.idventa', '=', $id)
+        ->orderBy('detalle_ventas.id', 'desc')
+        ->get();
+
+    return ['detalles' => $detalles];
+}
+
+
     public function pdf(Request $request, $id)
     {
         $venta = Venta::join('personas', 'ventas.idcliente', '=', 'personas.id')
@@ -2687,24 +2705,44 @@ class VentaController extends Controller
         }
     }
 
-    public function ventaSelecionada($id)
-    {
-        // Encuentra la venta por su ID
-        $venta = Venta::find($id);
+   public function ventaSelecionada($id)
+{
+    // Encuentra la venta
+    $venta = Venta::find($id);
 
-        // Verifica si la venta existe
-        if ($venta) {
-            // Devuelve la respuesta JSON con los datos requeridos
-            return response()->json([
-                'id' => $venta->id,
-                'num_comprobante' => $venta->num_comprobante,
-                'total' => $venta->total,
-            ]);
-        } else {
-            // Devuelve un error 404 si la venta no se encuentra
-            return response()->json(['message' => 'Venta no encontrada'], 404);
-        }
+    if (!$venta) {
+        return response()->json(['message' => 'Venta no encontrada'], 404);
     }
+
+    // 🔹 Obtener los detalles de esa venta
+    $detalles = \App\DetalleVenta::where('idventa', $id)->get();
+
+    // 🔸 Calcular el monto total de descuentos (en Bs)
+    $totalDescuentoDetalles = 0;
+
+    foreach ($detalles as $detalle) {
+        $precioUnitario = (float)$detalle->precio;
+        $cantidad = (float)$detalle->cantidad;
+        $descuentoPorcentaje = (float)$detalle->descuento; // está en %
+
+        // 💰 Convertir a monto real
+        $montoDescuento = $precioUnitario * $cantidad * ($descuentoPorcentaje / 100);
+        $totalDescuentoDetalles += $montoDescuento;
+    }
+
+    // 🔹 Descuento total real: el registrado menos lo calculado por detalle
+    $descuentoFinal = (float)$venta->descuento_total - $totalDescuentoDetalles;
+    if ($descuentoFinal < 0) $descuentoFinal = 0;
+
+    // 🔹 Devolver la respuesta
+    return response()->json([
+        'id' => $venta->id,
+        'num_comprobante' => $venta->num_comprobante,
+        'total' => $venta->total,
+        'descuento' => number_format($descuentoFinal, 2, '.', ''),
+    ]);
+}
+
 
     /*public function cerrarVenta(Request $request)
     {
