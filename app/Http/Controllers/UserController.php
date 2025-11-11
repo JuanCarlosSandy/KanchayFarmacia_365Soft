@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\User;
 use App\Persona;
-use App\Sucursal;
+use App\Sucursales;
 use App\Exports\UserExport;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
@@ -282,5 +282,17 @@ class UserController extends Controller
             ->get();
 
         return ['usuarios' => $usuarios];
+    }
+    public function getUsuarioAutenticado(Request $request)
+    {
+        $usuario = Auth::user();
+        $sucursal = Sucursales::find($usuario->idsucursal); // Cambia Sucursal por Sucursales
+        if (!$sucursal) {
+            return response()->json(['error' => 'Sucursal no encontrada'], 404);
+        }
+        return response()->json([
+            'idsucursal' => $sucursal->id,
+            'sucursal_nombre' => $sucursal->nombre
+        ]);
     }
 }

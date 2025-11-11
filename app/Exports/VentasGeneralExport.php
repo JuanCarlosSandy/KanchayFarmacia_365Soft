@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Exports;
-
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -29,21 +27,25 @@ class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithC
                 'ventas.fecha_hora',
                 'personas.nombre as cliente',
                 'ventas.total',
-                'users.usuario as vendedor'
+                'users.usuario as vendedor',
+                'ventas.estado'
             );
-
-        if (!empty($this->filters['fechaInicio']) && !empty($this->filters['fechaFin'])) {
-            $inicio = $this->filters['fechaInicio'] . ' 00:00:00';
-            $fin = $this->filters['fechaFin'] . ' 23:59:59';
-            $query->whereBetween('ventas.fecha_hora', [$inicio, $fin]);
-        }
 
         if (!empty($this->filters['sucursal']) && $this->filters['sucursal'] !== 'undefined') {
             $query->where('users.idsucursal', $this->filters['sucursal']);
         }
 
-        if (!empty($this->filters['ejecutivoCuentas']) && $this->filters['ejecutivoCuentas'] !== 'undefined') {
-            $query->where('ventas.idusuario', $this->filters['ejecutivoCuentas']);
+        if (!empty($this->filters['tipoReporte'])) {
+            if ($this->filters['tipoReporte'] === 'dia' && !empty($this->filters['fechaSeleccionada'])) {
+                $inicio = $this->filters['fechaSeleccionada'] . ' 00:00:00';
+                $fin = $this->filters['fechaSeleccionada'] . ' 23:59:59';
+                $query->whereBetween('ventas.fecha_hora', [$inicio, $fin]);
+            } else if ($this->filters['tipoReporte'] === 'mes' && !empty($this->filters['mesSeleccionado'])) {
+                $mesSeleccionado = $this->filters['mesSeleccionado'];
+                $inicio = $mesSeleccionado . '-01 00:00:00';
+                $fin = date('Y-m-t', strtotime($mesSeleccionado . '-01')) . ' 23:59:59';
+                $query->whereBetween('ventas.fecha_hora', [$inicio, $fin]);
+            }
         }
 
         if (!empty($this->filters['estadoVenta']) && $this->filters['estadoVenta'] !== 'Todos' && $this->filters['estadoVenta'] !== 'undefined') {
@@ -59,7 +61,7 @@ class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithC
 
     public function headings(): array
     {
-        return ['N° Comprobante', 'Fecha y Hora', 'Cliente', 'Total Venta', 'Vendedor'];
+        return ['N° Comprobante', 'Fecha y Hora', 'Cliente', 'Total Venta', 'Vendedor', 'Estado'];
     }
 
     public function map($row): array
@@ -70,6 +72,7 @@ class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithC
             mb_strimwidth($row->cliente, 0, 30, '...'),
             number_format($row->total, 2),
             mb_strimwidth($row->vendedor, 0, 25, '...'),
+            $row->estado == 1 ? 'Registrado' : 'Anulado'
         ];
     }
 
@@ -81,13 +84,14 @@ class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithC
             'C' => 40,
             'D' => 15,
             'E' => 30,
+            'F' => 15,
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
         // Encabezado en negrita con fondo celeste
-        $sheet->getStyle('A1:E1')->applyFromArray([
+        $sheet->getStyle('A1:F1')->applyFromArray([
             'font' => ['bold' => true],
             'fill' => [
                 'fillType' => 'solid',

@@ -23,20 +23,23 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
     {
         $query = Venta::with(['detalles.producto', 'usuario.persona', 'cliente']);
 
-        if (!empty($this->filters['fechaInicio']) && !empty($this->filters['fechaFin'])) {
-            $inicio = $this->filters['fechaInicio'] . ' 00:00:00';
-            $fin = $this->filters['fechaFin'] . ' 23:59:59';
-            $query->whereBetween('fecha_hora', [$inicio, $fin]);
-        }
-
         if (!empty($this->filters['sucursal']) && $this->filters['sucursal'] !== 'undefined') {
             $query->whereHas('usuario', function ($q) {
                 $q->where('idsucursal', $this->filters['sucursal']);
             });
         }
 
-        if (!empty($this->filters['ejecutivoCuentas']) && $this->filters['ejecutivoCuentas'] !== 'undefined') {
-            $query->where('idusuario', $this->filters['ejecutivoCuentas']);
+        if (!empty($this->filters['tipoReporte'])) {
+            if ($this->filters['tipoReporte'] === 'dia' && !empty($this->filters['fechaSeleccionada'])) {
+                $inicio = $this->filters['fechaSeleccionada'] . ' 00:00:00';
+                $fin = $this->filters['fechaSeleccionada'] . ' 23:59:59';
+                $query->whereBetween('fecha_hora', [$inicio, $fin]);
+            } else if ($this->filters['tipoReporte'] === 'mes' && !empty($this->filters['mesSeleccionado'])) {
+                $mesSeleccionado = $this->filters['mesSeleccionado'];
+                $inicio = $mesSeleccionado . '-01 00:00:00';
+                $fin = date('Y-m-t', strtotime($mesSeleccionado . '-01')) . ' 23:59:59';
+                $query->whereBetween('fecha_hora', [$inicio, $fin]);
+            }
         }
 
         if (!empty($this->filters['estadoVenta']) && $this->filters['estadoVenta'] !== 'Todos' && $this->filters['estadoVenta'] !== 'undefined') {
@@ -48,7 +51,6 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
         }
 
         $ventas = $query->orderBy('fecha_hora', 'asc')->get();
-
         $rows = new Collection();
         $line = 2; // comenzamos en fila 2 porque headings ocupa la 1
 
@@ -60,17 +62,16 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
                 'Cliente: ' . ($venta->cliente->nombre ?? 'S/N'),
                 'Vendedor: ' . ($venta->usuario->persona->nombre ?? 'S/N'),
                 'Total (Bs): ' . number_format($venta->total, 2),
+                'Estado: ' . ($venta->estado == 1 ? 'Registrado' : 'Anulado'),
                 '', '', '', ''
             ]);
             $line++;
-
             // Cabecera de detalle
             $rows->push([
                 'Producto', 'Cantidad', 'Precio', 'Descuento', 'Subtotal', '', '', '', ''
             ]);
             $this->detalleHeaderRows[] = $line;
             $line++;
-
             // Detalles
             foreach ($venta->detalles as $d) {
                 $subtotal = ($d->precio * $d->cantidad) - $d->descuento;
@@ -84,12 +85,10 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
                 ]);
                 $line++;
             }
-
             // Línea vacía
             $rows->push(['', '', '', '', '', '', '', '', '']);
             $line++;
         }
-
         return $rows;
     }
 

@@ -120,7 +120,7 @@
                 <a class="nav-link nav-dropdown-toggle" href="#"><i class="fa fa-line-chart"></i> REPORTE VENTAS</a>
                 <ul class="nav-dropdown-items">
                     <li @click="menu=62" class="nav-item">
-                        <a class="nav-link" href="#"><i class="fa fa-calendar-check-o" style="font-size: 19px;"></i> Ventas Diarias</a>
+                        <a class="nav-link" href="#"><i class="fa fa-calendar-check-o" style="font-size: 19px;"></i> Ventas Diarias y Mensuales</a>
                     </li>
                 </ul>
             </li>

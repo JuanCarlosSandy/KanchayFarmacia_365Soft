@@ -1,198 +1,213 @@
 <template>
   <main class="main">
     <Panel>
+      <!-- Encabezado del Panel -->
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <i class="pi pi-bars panel-icon"></i>
-            <h4 class="panel-title" style="margin: 0;">REPORTE DE VENTAS</h4>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <Button icon="pi pi-filter" :label="mostrarLabel ? 'Filtros' : ''" class="p-button-secondary p-button-sm"
-              @click="
-                abrirModal('articulo', 'registrar');
-              listarPrecio();
-              " />
-            <Button icon="pi pi-file-excel" :label="mostrarLabel ? 'EXCEL' : ''" class="p-button-success p-button-sm"
-              @click="exportarExcelDialog" />
-            <Button icon="pi pi-file-pdf" :label="mostrarLabel ? 'PDF' : ''" class="p-button-danger p-button-sm"
-              @click="descargarPDFDialog" />
+            <i class="pi pi-bars panel-icon" style="color: blue;"></i>
+            <h4 class="panel-title" style="margin: 0;">REPORTE DE VENTAS DIARIAS Y MENSUALES</h4>
           </div>
         </div>
       </template>
-
-      <TabView>
-        <TabPanel header="REPORTE DE VENTAS">
-          <template v-if="listado == 1">
-            <div style="overflow-y: auto;">
-              <div class="mb-2 d-flex" style="gap: 0.5rem;">
-                <input type="text" v-model="busquedaVentas" class="form-control"
-                  placeholder="Buscar en reporte de ventas..." style="flex:1; min-width:0;" />
-                <Button icon="pi pi-times" class="p-button-secondary p-button-sm" @click="busquedaVentas = ''"
-                  title="Reset" />
-              </div>
-              <DataTable :value="filteredVentas" :paginator="true" :rows="10" dataKey="id" responsiveLayout="scroll"
-                class="p-datatable-gridlines p-datatable-sm">
-                <Column header="Opciones">
-                  <template #body="slotProps">
-                    <Button icon="pi pi-eye" class="p-button-success p-button-sm"
-                      style="padding: 0.3rem 0.4rem; font-size: 0.75rem; width: auto; min-width: unset;"
-                      @click="verVenta(slotProps.data.id)" />
-                  </template>
-                </Column>
-                <Column field="Factura" header="NUM COMPROBANTE" />
-                <Column field="fecha_hora" header="FECHA-HORA" />
-                <Column field="Nombre_sucursal" header="SUCURSAL" />
-                <Column field="usuario" header="VENDEDOR" />
-                <Column field="nombre" header="CLIENTE" />
-                <Column field="importe_BS" header="IMPORTE BS" />
-              </DataTable>
+      <!-- Sección de Filtros Aplicados, Total de Ventas y Botones -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <!-- Tarjeta de Sucursal -->
+          <div style="display: flex; align-items: center; gap: 0.5rem; background-color: white; padding: 0.5rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <i class="pi pi-home" style="font-size: 1.2rem; color: blue;"></i>
+            <div>
+              <div style="font-weight: bold; font-size: 0.9rem;">Sucursal</div>
+              <div>{{ sucursalseleccionada.nombre }}</div>
             </div>
-          </template>
-
-          <template v-else-if="listado == 2">
-            <div class="card-body">
-              <div class="form-group row border mb-3">
-                <div class="col-md-4">
-                  <label for="cliente" class="font-weight-bold mb-1">Cliente</label>
-                  <InputText id="cliente" :value="cliente" disabled class="w-100" />
-                </div>
-                <div class="col-md-4">
-                  <label for="num_comprobante" class="font-weight-bold mb-1">Número Comprobante</label>
-                  <InputText id="num_comprobante" :value="num_comprobante" disabled class="w-100" />
-                </div>
-              </div>
-              <div class="form-group row border">
-                <div class="col-md-12">
-                  <DataTable :value="arrayDetalle" :paginator="false" dataKey="id" responsiveLayout="scroll"
-                    class="p-datatable-gridlines p-datatable-sm">
-                    <Column field="articulo" header="Artículo" />
-                    <Column header="Precio">
-                      <template #body="slotProps">
-                        {{
-                          (
-                            slotProps.data.precio * parseFloat(monedaPrincipal[0])
-                          ).toFixed(2)
-                        }}
-                        {{ monedaPrincipal[1] }}
-                      </template>
-                    </Column>
-                    <Column field="cantidad" header="Cantidad" />
-                    <Column field="descuento" header="Descuento" />
-                    <Column header="Subtotal">
-                      <template #body="slotProps">
-                        {{
-                          (
-                            (slotProps.data.precio * slotProps.data.cantidad -
-                              slotProps.data.descuento) *
-                            parseFloat(monedaPrincipal[0])
-                          ).toFixed(2)
-                        }}
-                        {{ monedaPrincipal[1] }}
-                      </template>
-                    </Column>
-                  </DataTable>
-                  <div v-if="arrayDetalle.length" style="background-color: #CEECF5;">
-                    <div class="d-flex justify-content-end align-items-center p-2">
-                      <strong class="mr-2">Total Neto:</strong>
-                      <span>
-                        {{ (total * parseFloat(monedaPrincipal[0])).toFixed(2) }}
-                        {{ monedaPrincipal[1] }}
-                      </span>
-                    </div>
-                  </div>
-                  <div v-else class="text-center p-2">
-                    No hay articulos agregados
-                  </div>
-                </div>
-              </div>
-              <div class="form-group row">
-                <div class="col-md-12">
-                  <Button type="button" @click="ocultarDetalle()" class="p-button-danger p-button-sm">Cerrar</Button>
-                </div>
-              </div>
-            </div>
-          </template>
-        </TabPanel>
-        <TabPanel header="REPORTE DE PRODUCTOS VENDIDOS">
-          <div style="overflow-y: auto;">
-            <div class="mb-2 d-flex" style="gap: 0.5rem;">
-              <input type="text" v-model="busquedaProductosVendidos" class="form-control"
-                placeholder="Buscar en productos vendidos..." style="flex:1; min-width:0;" />
-              <Button icon="pi pi-times" class="p-button-secondary p-button-sm" @click="busquedaProductosVendidos = ''"
-                title="Reset" />
-            </div>
-            <DataTable :value="filteredProductosVendidosWithKey" :paginator="true" :rows="10" dataKey="rowKey"
-              responsiveLayout="scroll" class="p-datatable-gridlines p-datatable-sm">
-              <Column field="id_articulo" header="ID ARTÍCULO" />
-              <Column field="nombre_articulo" header="NOMBRE ARTÍCULO" />
-              <Column field="cantidad_total" header="CANTIDAD VENDIDA" />
-              <Column field="fecha_venta" header="FECHA DE VENTA" />
-            </DataTable>
           </div>
-        </TabPanel>
-      </TabView>
+          <!-- Tarjeta de Tipo de Reporte -->
+          <div style="display: flex; align-items: center; gap: 0.5rem; background-color: white; padding: 0.5rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <i :class="tipoReporte === 'dia' ? 'pi pi-calendar' : 'pi pi-calendar-times'" style="font-size: 1.2rem; color: blue;"></i>
+            <div>
+              <div style="font-weight: bold; font-size: 0.9rem;">Tipo</div>
+              <div>{{ tipoReporte === 'dia' ? 'Por Día' : 'Por Mes' }}</div>
+            </div>
+          </div>
+          <!-- Tarjeta de Fecha o Mes/Año -->
+          <div style="display: flex; align-items: center; gap: 0.5rem; background-color: white; padding: 0.5rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <i class="pi pi-calendar" style="font-size: 1.2rem; color: blue;"></i>
+            <div>
+              <div style="font-weight: bold; font-size: 0.9rem;">{{ tipoReporte === 'dia' ? 'Fecha' : 'Mes/Año' }}</div>
+              <div>{{ tipoReporte === 'dia' ? fechaSeleccionada : mesSeleccionado }}</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-weight: bold; font-size: 1.1rem;">
+          Total Ventas: {{ totalVentas }} {{ monedaPrincipal[1] }}
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <Button 
+            icon="pi pi-filter" 
+            :label="mostrarLabel ? 'Filtros' : ''" 
+            class="p-button-secondary p-button-sm"
+            @click="modal = true" />
+          <Button
+            icon="pi pi-file-excel"
+            label="EXCEL"
+            class="p-button-success"
+            @click="exportarExcelDialog" />
+          <Button
+            icon="pi pi-file-pdf"
+            label="PDF"
+            class="p-button-danger"
+            @click="descargarPDFDialog" />
+        </div>
+      </div>
+      <!-- Tabla de Ventas -->
+      <template v-if="listado == 1">
+        <div style="overflow-y: auto;">
+          <div class="mb-2 d-flex" style="gap: 0.5rem;">
+            <input
+              type="text"
+              v-model="busquedaVentas"
+              class="form-control"
+              placeholder="Buscar en reporte de ventas..."
+              style="flex:1; min-width:0;" />
+            <Button
+              icon="pi pi-times"
+              class="p-button-secondary p-button-sm"
+              @click="busquedaVentas = ''"
+              title="Reset" />
+          </div>
+          <DataTable
+            :value="arrayReporte"
+            :paginator="true"
+            :rows="10"
+            dataKey="id"
+            responsiveLayout="scroll"
+            class="p-datatable-gridlines p-datatable-sm">
+            
+            <Column header="N° de Comprobante">
+              <template #body="slotProps">
+                {{ slotProps.data.Factura }}
+              </template>
+            </Column>
+            
+            <Column header="Fecha y Hora">
+              <template #body="slotProps">
+                {{ formatearFechaHora(slotProps.data.fecha_hora) }}
+              </template>
+            </Column>
+            
+            <Column header="Vendedor">
+              <template #body="slotProps">
+                {{ slotProps.data.usuario }}
+              </template>
+            </Column>
+            
+            <Column header="Cliente">
+              <template #body="slotProps">
+                {{ slotProps.data.nombre }}
+              </template>
+            </Column>
+            
+            <Column header="Total de Venta">
+              <template #body="slotProps">
+                {{ Number(slotProps.data.importe_BS).toFixed(2) }} Bs
+              </template>
+            </Column>
+            
+            <Column header="Estado">
+              <template #body="slotProps">
+                <!-- Comparación con número 1 o 0 -->
+                <span 
+                  v-if="slotProps.data.estado == 1 || slotProps.data.estado === 1" 
+                  class="badge badge-success">
+                  Registrado
+                </span>
+                <span 
+                  v-else-if="slotProps.data.estado == 0 || slotProps.data.estado === 0"
+                  class="badge badge-danger">
+                  Anulado
+                </span>
+                <span v-else class="badge badge-secondary">
+                  Desconocido
+                </span>
+              </template>
+            </Column>
+          </DataTable>
+        </div>
+      </template>
     </Panel>
 
-    <div class="modal" tabindex="-1" :class="{ mostrar: modal }" role="dialog" aria-labelledby="myModalLabel"
-      style="display: none;" aria-hidden="true">
+    <!-- MODAL DE FILTROS -->
+    <div 
+      class="modal" 
+      tabindex="-1" 
+      :class="{ mostrar: modal }" 
+      role="dialog" 
+      aria-labelledby="myModalLabel"
+      style="display: none;" 
+      aria-hidden="true">
       <div class="modal-dialog modal-primary modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h4 class="modal-title">FILTRO DE REPORTES</h4>
-            <button type="button" class="close" @click="cerrarModal()" aria-label="Close">
+            <button type="button" class="close" @click="modal = false" aria-label="Close">
               <span aria-hidden="true">×</span>
             </button>
           </div>
-          <form @submit.prevent="enviarFormulario">
+          <form @submit.prevent="procesarReporte">
             <div class="modal-body">
               <div class="form-group row">
                 <div class="col-md-6">
-                  <label for="" class="font-weight-bold">Sucursal <span class="text-danger">*</span></label>
+                  <label class="font-weight-bold">Sucursal <span class="text-danger">*</span></label>
                   <div class="input-group">
-                    <input class="form-control" type="text" placeholder="Seleccione una sucursal" disabled
-                      v-model="sucursalseleccionada.nombre" @input="validarCampo('codigo')" />
-                    <div class="input-group-append">
-                      <button class="btn btn-primary" type="button" @click="abrirModal2('Sucursal')">
-                        ...
-                      </button>
-                    </div>
+                    <input 
+                      class="form-control" 
+                      type="text" 
+                      placeholder="Sucursal del usuario" 
+                      disabled
+                      v-model="sucursalseleccionada.nombre" />
                   </div>
                 </div>
+                
                 <div class="col-md-6">
-                  <label for="" class="font-weight-bold">Estado Venta <span class="text-danger">*</span></label>
+                  <label class="font-weight-bold">Estado Venta <span class="text-danger">*</span></label>
                   <div class="input-group">
                     <select class="form-control col-md-12" v-model="criterioEstado">
                       <option value="Todos">Todos</option>
-                      <option value="Anulado">Anuladas</option>
                       <option value="Registrado">Registrado</option>
+                      <option value="Anulado">Anulado</option>
                     </select>
                   </div>
                 </div>
+              </div>
+              
+              <div class="form-group row">
                 <div class="col-md-6">
-                  <label for="" class="font-weight-bold">Fecha Inicio: <span class="text-danger">*</span>
-                  </label>
-                  <input class="form-control" type="date" v-model="fechaInicio" />
+                  <label class="font-weight-bold">Tipo de Reporte <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <select class="form-control col-md-12" v-model="tipoReporte">
+                      <option value="dia">Por Día</option>
+                      <option value="mes">Por Mes</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="col-md-6">
-                  <label for="" class="font-weight-bold">Fecha Fin: <span class="text-danger">*</span></label>
-                  <input class="form-control" type="date" v-model="fechaFin" />
+                
+                <div class="col-md-6" v-if="tipoReporte === 'dia'">
+                  <label class="font-weight-bold">Fecha: <span class="text-danger">*</span></label>
+                  <input class="form-control" type="date" v-model="fechaSeleccionada" />
+                </div>
+                
+                <div class="col-md-6" v-if="tipoReporte === 'mes'">
+                  <label class="font-weight-bold">Mes y Año: <span class="text-danger">*</span></label>
+                  <input class="form-control" type="month" v-model="mesSeleccionado" />
                 </div>
               </div>
             </div>
+            
             <div class="modal-footer">
-              <button type="button" class="btn btn-danger" @click="cerrarModal()">
+              <button type="button" class="btn btn-danger" @click="modal = false">
                 Cerrar
               </button>
-              <button type="submit" @click="
-  if (validarFiltrosVisualizarReporte()) {
-                listaReporte();
-                listaReporteDetallado();
-                obtenerArticulosVendidos();
-                cerrarModal();
-              }
-                " class="btn btn-primary">
+              <button type="button" class="btn btn-primary" @click="procesarReporte">
                 Visualizar Reporte
               </button>
             </div>
@@ -726,7 +741,7 @@ export default {
       fotoMuestra: null,
       arrayArticulo: [],
       arrayBuscador: [],
-      modal: 0,
+      modal: false,
 
       tituloModal: "",
       tipoAccion: 0,
@@ -778,7 +793,7 @@ export default {
       //Sucursal
       arraySucursal: [],
       sucursalseleccionada: { id: 1, nombre: "" },
-
+      
       //articulo
       articuloseleccionada: [],
       arrayReporte: [],
@@ -792,7 +807,14 @@ export default {
       arrayReporteDetallado: [],
       articulosVendidos: [], // <-- aquí se guardarán los datos del backend
       busquedaVentas: '',
-      busquedaProductosVendidos: '',
+
+      //añadidos para reporte de ventas diarias y mensuales
+
+      tipoReporte: 'dia',
+      fechaSeleccionada: '',
+      mesSeleccionado: '',
+      totalVentas: 0,
+      monedaPrincipal: ['1', 'BOB'],
     };
   },
 
@@ -810,22 +832,6 @@ export default {
           String(val).toLowerCase().includes(texto)
         );
       });
-    },
-    filteredProductosVendidos() {
-      if (!this.busquedaProductosVendidos) return this.articulosVendidos;
-      const texto = this.busquedaProductosVendidos.toLowerCase();
-      return this.articulosVendidos.filter(item => {
-        return Object.values(item).some(val =>
-          String(val).toLowerCase().includes(texto)
-        );
-      });
-    },
-    filteredProductosVendidosWithKey() {
-      // Devuelve los productos vendidos filtrados, pero con un campo rowKey único
-      return this.filteredProductosVendidos.map(item => ({
-        ...item,
-        rowKey: `${item.id_articulo}_${item.fecha_venta}`
-      }));
     },
     isActived: function () {
       return this.pagination.current_page;
@@ -1416,6 +1422,16 @@ export default {
         });
     },
 
+    abrirModal() {
+      this.modal = true;
+      document.body.classList.add('modal-open');
+    },
+    
+    cerrarModal() {
+      this.modal = false;
+      document.body.classList.remove('modal-open');
+    },
+
     abrirModal2(titulo) {
       if (titulo == "Estado Venta") {
         this.listarMarca(1, "", "nombre");
@@ -1533,34 +1549,78 @@ export default {
       let me = this;
       var url = "/resumen-ventas-documento?";
 
-      // Agregar los parámetros obligatorios
-      url +=
-        "sucursal=" +
-        this.sucursalseleccionada.id +
-        "&ejecutivoCuentas=" +
-        this.ejecutivoseleccionado.id +
-        "&estadoVenta=" +
-        this.criterioEstado +
-        "&idcliente=" +
-        this.clienteseleccionada.id +
-        "&moneda=" +
-        this.monedaPrincipal[0];
+      url += "sucursal=" + this.sucursalseleccionada.id;
 
-      // Agregar las fechas de inicio y fin
-      url += "&fechaInicio=" + me.fechaInicio + "&fechaFin=" + me.fechaFin;
+      if (this.ejecutivoseleccionado && this.ejecutivoseleccionado.id) {
+        url += "&ejecutivoCuentas=" + this.ejecutivoseleccionado.id;
+      }
 
-      axios
-        .get(url)
+      url += "&estadoVenta=" + this.criterioEstado;
+
+      if (this.clienteseleccionada && this.clienteseleccionada.id) {
+        url += "&idcliente=" + this.clienteseleccionada.id;
+      }
+
+      url += "&moneda=" + this.monedaPrincipal[0];
+
+      let fechaInicio, fechaFin;
+
+      if (this.tipoReporte === 'dia') {
+        fechaInicio = this.fechaSeleccionada;
+        fechaFin = this.fechaSeleccionada;
+      } else if (this.tipoReporte === 'mes') {
+        const [year, month] = this.mesSeleccionado.split('-');
+        fechaInicio = `${year}-${month}-01`;
+        const ultimoDia = new Date(year, month, 0).getDate();
+        fechaFin = `${year}-${month}-${String(ultimoDia).padStart(2, '0')}`;
+      }
+
+      url += "&fechaInicio=" + fechaInicio + "&fechaFin=" + fechaFin;
+
+      console.log('URL de consulta:', url);
+
+      axios.get(url)
         .then(function (response) {
           var respuesta = response.data;
-          me.total_saldofisico = respuesta.total_BS;
+          me.totalVentas = respuesta.total_BS;
           me.arrayReporte = respuesta.ventas;
-          console.log("array reporte", me.arrayReporte);
+          me.cantidadVentasRegistradas = respuesta.ventas_registradas || 0;
+          me.cantidadVentasAnuladas = respuesta.ventas_anuladas || 0;
+
+          console.log("Array reporte:", me.arrayReporte);
+
+          if (me.arrayReporte.length === 0) {
+            me.$swal.fire('Sin resultados', 'No se encontraron ventas para los filtros seleccionados', 'info');
+          } else {
+            let mensaje = `Se encontraron ${me.arrayReporte.length} ventas<br>`;
+            mensaje += `Registradas: ${me.cantidadVentasRegistradas}<br>`;
+            mensaje += `Anuladas: ${me.cantidadVentasAnuladas}`;
+            me.$swal.fire('Éxito', mensaje, 'success');
+          }
         })
         .catch(function (error) {
-          console.log("ERRORES", error);
+          console.error("ERROR:", error);
+          me.$swal.fire('Error', 'No se pudo generar el reporte', 'error');
         });
     },
+
+    calcularTotalVentas() {
+      this.totalVentas = this.arrayReporte.reduce((total, venta) => {
+        return total + parseFloat(venta.importe_BS || 0);
+      }, 0);
+    },
+
+    formatearFechaHora(fechaHora) {
+      if (!fechaHora) return '';
+      const fecha = new Date(fechaHora);
+      const dia = String(fecha.getDate()).padStart(2, '0');
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      const anio = fecha.getFullYear();
+      const horas = String(fecha.getHours()).padStart(2, '0');
+      const minutos = String(fecha.getMinutes()).padStart(2, '0');
+      return `${dia}/${mes}/${anio} ${horas}:${minutos}`;
+    },
+
     listaReporteDetallado() {
       let me = this;
       var url = "/resumen-ventas-documento-detallado?";
@@ -1619,6 +1679,7 @@ export default {
           console.log("ERRORES articulos vendidos", error);
         });
     },
+    
     async descargarArchivoReporte(url, nombreArchivo) {
       try {
         Swal.fire({
@@ -1648,28 +1709,73 @@ export default {
         Swal.fire('Error al generar el reporte', '', 'error');
       }
     },
+
+    cargarSucursalUsuario() {
+      console.log("Iniciando carga de sucursal del usuario...");
+      axios.get('/usuario-autenticado')
+        .then(response => {
+          console.log("Respuesta del servidor:", response.data);
+          this.sucursalseleccionada = {
+            id: response.data.idsucursal,
+            nombre: response.data.sucursal_nombre
+          };
+        })
+        .catch(error => {
+          console.error("Error completo al cargar sucursal del usuario:", error.response);
+          this.$swal.fire('Error', 'No se pudo cargar la sucursal del usuario', 'error');
+        });
+    },
+
     validarFiltrosVisualizarReporte() {
       if (!this.sucursalseleccionada || !this.sucursalseleccionada.id) {
-        Swal.fire('Debe seleccionar una sucursal', '', 'warning');
+        this.$swal.fire('Error', 'No se ha cargado la sucursal del usuario', 'warning');
         return false;
       }
-      if (!this.fechaInicio) {
-        Swal.fire('Debe seleccionar la fecha de inicio', '', 'warning');
+      
+      if (this.tipoReporte === 'dia' && !this.fechaSeleccionada) {
+        this.$swal.fire('Error', 'Debe seleccionar una fecha', 'warning');
         return false;
       }
-      if (!this.fechaFin) {
-        Swal.fire('Debe seleccionar la fecha de fin', '', 'warning');
+      
+      if (this.tipoReporte === 'mes' && !this.mesSeleccionado) {
+        this.$swal.fire('Error', 'Debe seleccionar un mes y año', 'warning');
         return false;
       }
+      
       return true;
     },
-    validarFiltrosExportacion() {
-      return (
-        this.sucursalseleccionada && this.sucursalseleccionada.id &&
-        this.criterioEstado && // Permite cualquier valor, incluso 'Todos'
-        this.fechaInicio && this.fechaFin
-      );
+
+    procesarReporte() {
+      if (this.validarFiltrosVisualizarReporte()) {
+        this.listaReporte();
+        this.modal = false;
+      }
     },
+
+    validarFiltrosExportacion() {
+      if (!this.sucursalseleccionada || !this.sucursalseleccionada.id) {
+        Swal.fire('Seleccione una sucursal', '', 'warning');
+        return false;
+      }
+
+      if (!this.tipoReporte) {
+        Swal.fire('Seleccione un tipo de reporte', '', 'warning');
+        return false;
+      }
+
+      if (this.tipoReporte === 'dia' && !this.fechaSeleccionada) {
+        Swal.fire('Seleccione una fecha', '', 'warning');
+        return false;
+      }
+
+      if (this.tipoReporte === 'mes' && !this.mesSeleccionado) {
+        Swal.fire('Seleccione un mes', '', 'warning');
+        return false;
+      }
+
+      return true;
+    },
+
     descargarPDFDialog() {
       Swal.fire({
         title: '¿Qué tipo de reporte quiere descargar?',
@@ -1706,20 +1812,31 @@ export default {
         }
       });
     },
+    
     async descargarPDFGeneral() {
       if (!this.validarFiltrosExportacion()) {
         Swal.fire('No hay datos del filtro para generar reporte', '', 'warning');
         return;
       }
+
       let url = "/descargar-reporte-general-pdf?";
-      url +=
-        "sucursal=" + (this.sucursalseleccionada && this.sucursalseleccionada.id ? this.sucursalseleccionada.id : "") +
-        "&ejecutivoCuentas=" + (this.ejecutivoseleccionado && this.ejecutivoseleccionado.id ? this.ejecutivoseleccionado.id : "") +
-        "&estadoVenta=" + (this.criterioEstado ? this.criterioEstado : "") +
-        "&idcliente=" + (this.clienteseleccionada && this.clienteseleccionada.id ? this.clienteseleccionada.id : "") +
-        "&moneda=" + (this.monedaPrincipal && this.monedaPrincipal[0] ? this.monedaPrincipal[0] : "") +
-        "&fechaInicio=" + (this.fechaInicio ? this.fechaInicio : "") +
-        "&fechaFin=" + (this.fechaFin ? this.fechaFin : "");
+      url += "sucursal=" + this.sucursalseleccionada.id;
+      url += "&tipoReporte=" + this.tipoReporte;
+
+      if (this.tipoReporte === 'dia') {
+        url += "&fechaSeleccionada=" + this.fechaSeleccionada;
+      } else if (this.tipoReporte === 'mes') {
+        url += "&mesSeleccionado=" + this.mesSeleccionado;
+      }
+
+      url += "&estadoVenta=" + this.criterioEstado;
+
+      if (this.clienteseleccionada && this.clienteseleccionada.id) {
+        url += "&idcliente=" + this.clienteseleccionada.id;
+      }
+
+      url += "&moneda=" + this.monedaPrincipal[0];
+
       await this.descargarArchivoReporte(url, 'reporte_ventas_general.pdf');
     },
 
@@ -1728,63 +1845,135 @@ export default {
         Swal.fire('No hay datos del filtro para generar reporte', '', 'warning');
         return;
       }
+
       let url = "/descargar-ventas-detalladas-pdf?";
-      url +=
-        "sucursal=" + (this.sucursalseleccionada && this.sucursalseleccionada.id ? this.sucursalseleccionada.id : "") +
-        "&ejecutivoCuentas=" + (this.ejecutivoseleccionado && this.ejecutivoseleccionado.id ? this.ejecutivoseleccionado.id : "") +
-        "&estadoVenta=" + (this.criterioEstado ? this.criterioEstado : "") +
-        "&idcliente=" + (this.clienteseleccionada && this.clienteseleccionada.id ? this.clienteseleccionada.id : "") +
-        "&moneda=" + (this.monedaPrincipal && this.monedaPrincipal[0] ? this.monedaPrincipal[0] : "") +
-        "&fechaInicio=" + (this.fechaInicio ? this.fechaInicio : "") +
-        "&fechaFin=" + (this.fechaFin ? this.fechaFin : "");
+      url += "sucursal=" + this.sucursalseleccionada.id;
+      url += "&tipoReporte=" + this.tipoReporte;
+
+      if (this.tipoReporte === 'dia') {
+        url += "&fechaSeleccionada=" + this.fechaSeleccionada;
+      } else if (this.tipoReporte === 'mes') {
+        url += "&mesSeleccionado=" + this.mesSeleccionado;
+      }
+
+      url += "&estadoVenta=" + this.criterioEstado;
+
+      if (this.clienteseleccionada && this.clienteseleccionada.id) {
+        url += "&idcliente=" + this.clienteseleccionada.id;
+      }
+
+      url += "&moneda=" + this.monedaPrincipal[0];
 
       await this.descargarArchivoReporte(url, 'reporte_ventas_detalladas.pdf');
     },
+
+
+async descargarVentasDetalladasPDF() {
+  if (!this.validarFiltrosExportacion()) {
+    Swal.fire('No hay datos del filtro para generar reporte', '', 'warning');
+    return;
+  }
+
+  let url = "/descargar-ventas-detalladas-pdf?";
+  url += "sucursal=" + this.sucursalseleccionada.id;
+  url += "&tipoReporte=" + this.tipoReporte;
+
+  if (this.tipoReporte === 'dia') {
+    url += "&fechaSeleccionada=" + this.fechaSeleccionada;
+  } else if (this.tipoReporte === 'mes') {
+    url += "&mesSeleccionado=" + this.mesSeleccionado;
+  }
+
+  url += "&estadoVenta=" + this.criterioEstado;
+
+  if (this.clienteseleccionada && this.clienteseleccionada.id) {
+    url += "&idcliente=" + this.clienteseleccionada.id;
+  }
+
+  url += "&moneda=" + this.monedaPrincipal[0];
+
+  await this.descargarArchivoReporte(url, 'reporte_ventas_detalladas.pdf');
+},
+
+    async descargarVentasDetalladasPDF() {
+      if (!this.validarFiltrosExportacion()) {
+        Swal.fire('No hay datos del filtro para generar reporte', '', 'warning');
+        return;
+      }
+
+      let url = "/descargar-ventas-detalladas-pdf?";
+      url += "sucursal=" + this.sucursalseleccionada.id;
+      url += "&tipoReporte=" + this.tipoReporte;
+
+      if (this.tipoReporte === 'dia') {
+        url += "&fechaSeleccionada=" + this.fechaSeleccionada;
+      } else if (this.tipoReporte === 'mes') {
+        url += "&mesSeleccionado=" + this.mesSeleccionado;
+      }
+
+      url += "&estadoVenta=" + this.criterioEstado;
+
+      if (this.clienteseleccionada && this.clienteseleccionada.id) {
+        url += "&idcliente=" + this.clienteseleccionada.id;
+      }
+
+      url += "&moneda=" + this.monedaPrincipal[0];
+
+      await this.descargarArchivoReporte(url, 'reporte_ventas_detalladas.pdf');
+    },
+
     async descargarExcelGeneral() {
       if (!this.validarFiltrosExportacion()) {
         Swal.fire('No hay datos del filtro para generar reporte', '', 'warning');
         return;
       }
+
       let url = "/descargar-ventas-general-excel?";
-      url +=
-        "sucursal=" + (this.sucursalseleccionada && this.sucursalseleccionada.id ? this.sucursalseleccionada.id : "") +
-        "&ejecutivoCuentas=" + (this.ejecutivoseleccionado && this.ejecutivoseleccionado.id ? this.ejecutivoseleccionado.id : "") +
-        "&estadoVenta=" + (this.criterioEstado ? this.criterioEstado : "") +
-        "&idcliente=" + (this.clienteseleccionada && this.clienteseleccionada.id ? this.clienteseleccionada.id : "") +
-        "&moneda=" + (this.monedaPrincipal && this.monedaPrincipal[0] ? this.monedaPrincipal[0] : "") +
-        "&fechaInicio=" + (this.fechaInicio ? this.fechaInicio : "") +
-        "&fechaFin=" + (this.fechaFin ? this.fechaFin : "");
+      url += "sucursal=" + this.sucursalseleccionada.id;
+      url += "&tipoReporte=" + this.tipoReporte;
+
+      if (this.tipoReporte === 'dia') {
+        url += "&fechaSeleccionada=" + this.fechaSeleccionada;
+      } else if (this.tipoReporte === 'mes') {
+        url += "&mesSeleccionado=" + this.mesSeleccionado;
+      }
+
+      url += "&estadoVenta=" + this.criterioEstado;
+
+      if (this.clienteseleccionada && this.clienteseleccionada.id) {
+        url += "&idcliente=" + this.clienteseleccionada.id;
+      }
+
+      url += "&moneda=" + this.monedaPrincipal[0];
 
       await this.descargarArchivoReporte(url, 'reporte_ventas_general.xlsx');
     },
+
     async exportarExcelDetallado() {
       if (!this.validarFiltrosExportacion()) {
         Swal.fire('No hay datos del filtro para generar reporte', '', 'warning');
         return;
       }
+
       let url = "/descargar-ventas-detalladas-excel?";
-      url +=
-        "sucursal=" + (this.sucursalseleccionada && this.sucursalseleccionada.id ? this.sucursalseleccionada.id : "") +
-        "&ejecutivoCuentas=" + (this.ejecutivoseleccionado && this.ejecutivoseleccionado.id ? this.ejecutivoseleccionado.id : "") +
-        "&estadoVenta=" + (this.criterioEstado ? this.criterioEstado : "") +
-        "&idcliente=" + (this.clienteseleccionada && this.clienteseleccionada.id ? this.clienteseleccionada.id : "") +
-        "&moneda=" + (this.monedaPrincipal && this.monedaPrincipal[0] ? this.monedaPrincipal[0] : "") +
-        "&fechaInicio=" + (this.fechaInicio ? this.fechaInicio : "") +
-        "&fechaFin=" + (this.fechaFin ? this.fechaFin : "");
+      url += "sucursal=" + this.sucursalseleccionada.id;
+      url += "&tipoReporte=" + this.tipoReporte;
+
+      if (this.tipoReporte === 'dia') {
+        url += "&fechaSeleccionada=" + this.fechaSeleccionada;
+      } else if (this.tipoReporte === 'mes') {
+        url += "&mesSeleccionado=" + this.mesSeleccionado;
+      }
+
+      url += "&estadoVenta=" + this.criterioEstado;
+
+      if (this.clienteseleccionada && this.clienteseleccionada.id) {
+        url += "&idcliente=" + this.clienteseleccionada.id;
+      }
+
+      url += "&moneda=" + this.monedaPrincipal[0];
 
       await this.descargarArchivoReporte(url, 'reporte_ventas_detalladas.xlsx');
-    },
-    groupById() {
-      // Función para agrupar datos por 'id'
-      const groupedData = {};
-      this.arrayReporteDetallado.forEach((item) => {
-        const key = item.id;
-        if (!groupedData[key]) {
-          groupedData[key] = [];
-        }
-        groupedData[key].push(item);
-      });
-      return Object.values(groupedData);
     },
 
     formateaKardex() {
@@ -2563,10 +2752,42 @@ export default {
     this.datosConfiguracion();
     this.obtenerConfiguracionTrabajo();
     this.listarPrecio(); //aumenTe 6julio
+    this.cargarSucursalUsuario();
   },
 };
 </script>
 <style>
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1040;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1050;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  outline: 0;
+}
+
+.modal.show {
+  display: block !important;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
 .card-error {
   margin-bottom: 10px;
   width: 100%;

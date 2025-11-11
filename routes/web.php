@@ -307,6 +307,8 @@ Route::group(["middleware" => ["auth"]], function () {
             "/user/selectUser/rol",
             "UserController@selectUsuariosPorRol"
         );
+        Route::get('/usuario-autenticado', 'UserController@getUsuarioAutenticado')->middleware('auth');
+        
         Route::get("/articuloAjusteInven", "ArticuloController@indexAjusteInven");
 
         Route::get("/venta", "VentaController@index");
