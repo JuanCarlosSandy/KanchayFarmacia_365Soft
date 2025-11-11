@@ -99,8 +99,20 @@
   color: #fff !important;
 }
 .btn-mini {
-  padding: 0.3rem 0.4rem !important;
-  font-size: 0.75rem !important;
+  padding: 0.2rem 0.3rem !important;
+  font-size: 0.65rem !important;
   width: auto !important;
   min-width: unset !important;
+}
+.btn-mini .pi {
+  font-size: 0.75rem !important; /* ajusta a tu gusto */
+}
+.tag-mini {
+  font-size: 0.7rem !important; /* texto más pequeño */
+  font-weight: 600;
+  padding: 0.15rem 0.4rem !important; /* menos alto */
+  border-radius: 6px !important;
+  line-height: 1;
+  text-transform: uppercase; /* opcional: da uniformidad */
+  letter-spacing: 0.3px;
 }

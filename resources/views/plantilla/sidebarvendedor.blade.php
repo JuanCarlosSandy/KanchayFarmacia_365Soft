@@ -45,7 +45,7 @@
             </li>
 
             <li class="nav-item nav-dropdown">
-                <a class="nav-link nav-dropdown-toggle" href="#"><i class="fa fa-file-text"></i> ALMACEN</a>
+                <a class="nav-link nav-dropdown-toggle" href="#"><i class="fa fa-file-text"></i> INVENTARIO</a>
                 <ul class="nav-dropdown-items">
                     <li @click="menu=25" class="nav-item">
                         <a class="nav-link" href="#"><i class="fa fa-cubes" style="font-size: 19px;"></i> Mi Inventario</a>

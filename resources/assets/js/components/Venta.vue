@@ -15,9 +15,11 @@
           <h4 class="panel-title">VENTAS</h4>
         </div>
       </template>
-      <div class="d-flex align-items-center mb-2 justify-content-between">
-        <div class="d-flex align-items-center">
-          <!--<span :class="['badge',
+
+      <template v-if="listado == 1">
+        <div class="d-flex align-items-center mb-2 justify-content-between">
+          <div class="d-flex align-items-center">
+            <!--<span :class="['badge',
             estadoFactVisual === 'online' ? 'bg-success' : 'bg-secondary',
             'd-flex', 'align-items-center']"
             style="font-size: 0.85rem; padding: 0.3em 0.7em; min-width: 120px; justify-content: center; gap: 0.4em;">
@@ -33,21 +35,21 @@
             style="margin-left: 8px; padding: 2px 7px; font-size: 0.9em; border-radius: 4px; border: 1px solid #ccc;">
             <i class="pi pi-refresh"></i>
           </button>-->
-        </div>
-        <div class="d-flex align-items-center gap-1">
-          <!--<button :class="['btn', 'btn-sm', filtroVentasActivo === 'factura' ? 'btn-primary' : 'btn-outline-primary']"
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            <!--<button :class="['btn', 'btn-sm', filtroVentasActivo === 'factura' ? 'btn-primary' : 'btn-outline-primary']"
             style="margin-left: 8px; min-width: 70px; font-size: 0.85em; padding: 2px 10px;"
             @click="filtroVentasActivo = 'factura'; listarVentaF(1, buscar, criterio);">FACTURA</button>-->
-          <button :class="['btn', 'btn-sm', filtroVentasActivo === 'recibo' ? 'btn-primary' : 'btn-outline-primary']"
-            style="margin-left: 4px; min-width: 70px; font-size: 0.85em; padding: 2px 10px;"
-            @click="filtroVentasActivo = 'recibo'; listarVentaR(1, buscar, criterio);">RECIBO</button>
-          <button :class="['btn', 'btn-sm', filtroVentasActivo === 'todos' ? 'btn-primary' : 'btn-outline-primary']"
-            style="margin-left: 4px; min-width: 70px; font-size: 0.85em; padding: 2px 10px;"
-            @click="filtroVentasActivo = 'todos'; listarVenta(1, buscar, criterio);">TODOS</button>
+            <button :class="['btn', 'btn-sm', filtroVentasActivo === 'recibo' ? 'btn-primary' : 'btn-outline-primary']"
+              style="margin-left: 4px; min-width: 70px; font-size: 0.85em; padding: 2px 10px;"
+              @click="filtroVentasActivo = 'recibo'; listarVentaR(1, buscar, criterio);">RECIBO</button>
+            <button :class="['btn', 'btn-sm', filtroVentasActivo === 'todos' ? 'btn-primary' : 'btn-outline-primary']"
+              style="margin-left: 4px; min-width: 70px; font-size: 0.85em; padding: 2px 10px;"
+              @click="filtroVentasActivo = 'todos'; listarVenta(1, buscar, criterio);">TODOS</button>
+          </div>
         </div>
-      </div>
 
-      <!--<span class="badge bg-secondary" id="comunicacionSiat" style="color: white; display:none;"
+        <!--<span class="badge bg-secondary" id="comunicacionSiat" style="color: white; display:none;"
         v-show="mostrarElementos">Desconectado</span>
       <span class="badge bg-secondary" id="cuis" style="display:none;" v-show="mostrarElementos">CUIS:
         Inexistente</span>
@@ -56,8 +58,6 @@
       <span class="badge bg-secondary" id="direccion" style="display:none;" v-show="mostrarDireccion">No hay dirección
         registrada</span>
       <span class="badge bg-primary" id="cufdValor" style="display:none;" v-show="mostrarCUFD">No hay CUFD</span>-->
-
-      <template v-if="listado == 1">
         <div class="toolbar-container" style="margin-top: 0; padding-top: 0;">
           <div class="search-bar">
             <span class="p-input-icon-left">
@@ -76,9 +76,8 @@
             <Column header="Opciones">
               <template #body="slotProps">
                 <!-- Botón para ver venta -->
-                <Button icon="pi pi-eye" @click="verVenta(slotProps.data.id)"
-                  style="padding: 0.3rem 0.4rem; font-size: 0.75rem; width: auto; min-width: unset;"
-                  class="p-button-sm p-mr-1" :style="{
+                <Button icon="pi pi-eye" @click="verVenta(slotProps.data.id)" class="p-button-sm p-mr-1 btn-mini"
+                  :style="{
                     backgroundColor: slotProps.data.descuento_total > 0 ? 'yellow' : 'green',
                     borderColor: slotProps.data.descuento_total > 0 ? 'yellow' : 'green',
                     color: slotProps.data.descuento_total > 0 ? 'black' : 'white',
@@ -87,31 +86,26 @@
                 <!-- Botón eliminar si estado = 1 -->
                 <template v-if="slotProps.data.estado === '1'">
                   <Button icon="pi pi-trash" v-if="slotProps.data.tipo_comprobante === 'RESIVO'"
-                    @click="desactivarVenta(slotProps.data.id)" class="p-button-sm p-button-danger p-mr-1"
-                    style="padding: 0.3rem 0.4rem; font-size: 0.75rem; width: auto; min-width: unset;" />
+                    @click="desactivarVenta(slotProps.data.id)" class="p-button-sm p-button-danger p-mr-1 btn-mini" />
                 </template>
 
                 <!-- Botones para RESIVO -->
                 <Button icon="pi pi-print" v-if="slotProps.data.tipo_comprobante === 'RESIVO'"
                   @click="imprimirResivo(slotProps.data.id, slotProps.data.correo)"
-                  class="p-button-sm p-button-primary p-mr-1"
-                  style="padding: 0.3rem 0.4rem; font-size: 0.75rem; width: auto; min-width: unset;" />
+                  class="p-button-sm p-button-primary p-mr-1 btn-mini" />
 
                 <!-- Botones para FACTURA -->
                 <template v-if="slotProps.data.tipo_comprobante === 'FACTURA'">
                   <Button icon="pi pi-check" @click="verificarFactura(slotProps.data.cuf, slotProps.data.numeroFactura)"
-                    class="p-button-sm p-mr-1"
-                    style="padding: 0.3rem 0.4rem; font-size: 0.75rem; width: auto; min-width: unset;" />
+                    class="p-button-sm p-mr-1 btn-mini" />
                   <Button icon="pi pi-print" @click="imprimirFactura(slotProps.data.idFactura, slotProps.data.correo)"
-                    class="p-button-sm p-button-primary p-mr-1"
-                    style="padding: 0.3rem 0.4rem; font-size: 0.75rem; width: auto; min-width: unset;" />
+                    class="p-button-sm p-button-primary p-mr-1 btn-mini" />
                   <Button v-if="slotProps.data.estado === '1'" icon="pi pi-trash"
                     @click="abrirDialogAnularFactura(slotProps.data)"
                     class="p-button-sm p-button-danger p-mr-1 btn-mini" />
                   <!-- 🔸 BOTÓN PAGAR -->
                   <template v-if="slotProps.data.estado == '4' || slotProps.data.facturaValidada == 0"> <Button
-                      label="Facturar" icon="pi pi-wallet" class="p-button-warning p-button-sm p-mr-1"
-                      style="padding: 0.3rem 0.6rem; font-size: 0.75rem; width: auto; min-width: unset;"
+                      label="Facturar" icon="pi pi-wallet" class="p-button-warning p-button-sm p-mr-1 btn-mini"
                       @click="abrirModalPago(slotProps.data.id)" />
                   </template>
                 </template>
@@ -145,92 +139,93 @@
             @page="onPageChange" />
         </div>
       </template>
-
       <template v-else-if="listado == 2">
-        <Card class="shadow">
-          <template #content>
-            <div class="p-grid p-fluid border" style="padding: 0.5rem 0; margin-bottom: 0.5rem;">
-              <div class="p-col-12 p-md-3" style="margin-bottom: 0;">
-                <div class="p-field" style="margin-bottom: 0;">
-                  <label style="margin-bottom: 2px;">Cliente</label>
-                  <InputText v-model="cliente" disabled style="margin-bottom: 0;" />
-                </div>
+        <div class="detalle-venta-pro">
+          <!-- ENCABEZADO -->
+          <div class="detalle-header-pro">
+            <div class="detalle-section-pro">
+              <h3 class="detalle-titulo-pro">Detalle de Comprobante</h3>
+              <p class="detalle-subtitulo-pro">Resumen completo de la venta registrada</p>
+            </div>
+            <div class="detalle-meta-pro">
+              <div>
+                <span class="label-pro">Tipo Comprobante</span>
+                <p class="valor-pro">{{ tipo_comprobante }}</p>
               </div>
-              <div class="p-col-12 p-md-3" style="margin-bottom: 0;">
-                <div class="p-field" style="margin-bottom: 0;">
-                  <label style="margin-bottom: 2px;">Tipo Comprobante</label>
-                  <InputText v-model="tipo_comprobante" disabled style="margin-bottom: 0;" />
-                </div>
-              </div>
-              <div class="p-col-12 p-md-3" style="margin-bottom: 0;">
-                <div class="p-field" style="margin-bottom: 0;">
-                  <label style="margin-bottom: 2px;">Número Comprobante</label>
-                  <InputText v-model="num_comprobante" disabled style="margin-bottom: 0;" />
-                </div>
+              <div>
+                <span class="label-pro">N° Comprobante</span>
+                <p class="valor-pro">#{{ num_comprobante }}</p>
               </div>
             </div>
-            <DataTable :value="arrayDetalle" class="p-datatable-gridlines p-datatable-sm">
+          </div>
+
+          <!-- CLIENTE -->
+          <div class="detalle-cliente-pro">
+            <span class="label-pro">Cliente</span>
+            <p class="valor-pro">{{ cliente }}</p>
+          </div>
+
+          <!-- TABLA DE ARTÍCULOS -->
+          <div class="detalle-tabla-pro">
+            <DataTable :value="arrayDetalle" class="p-datatable-sm p-datatable-gridlines">
               <Column field="articulo" header="Artículo"></Column>
+
               <Column header="Precio">
                 <template #body="slotProps">
-                  {{
-                    (
-                      slotProps.data.precio * parseFloat(monedaVenta[0])
-                    ).toFixed(2)
-                  }}
+                  {{ (slotProps.data.precio * parseFloat(monedaVenta[0])).toFixed(2) }}
                   {{ monedaVenta[1] }}
                 </template>
               </Column>
+
               <Column field="cantidad" header="Cantidad"></Column>
+
               <Column header="Subtotal sin Descuento">
                 <template #body="slotProps">
-                  {{
-                    (
-                      slotProps.data.subtotal_sin_descuento * parseFloat(monedaVenta[0])
-                    ).toFixed(2)
-                  }}
+                  {{ (slotProps.data.subtotal_sin_descuento * parseFloat(monedaVenta[0])).toFixed(2) }}
                   {{ monedaVenta[1] }}
                 </template>
               </Column>
+
               <Column header="Descuento">
                 <template #body="slotProps">
                   {{ slotProps.data.descuento }}% =
-                  {{
-                    (slotProps.data.descuento_monto * parseFloat(monedaVenta[0])).toFixed(2)
-                  }}
+                  {{ (slotProps.data.descuento_monto * parseFloat(monedaVenta[0])).toFixed(2) }}
                   {{ monedaVenta[1] }}
                 </template>
               </Column>
+
               <Column field="subtotal" header="Subtotal">
                 <template #body="slotProps">
-                  {{
-                    (slotProps.data.subtotal * parseFloat(monedaVenta[0])).toFixed(2)
-                  }}
+                  {{ (slotProps.data.subtotal * parseFloat(monedaVenta[0])).toFixed(2) }}
                   {{ monedaVenta[1] }}
                 </template>
               </Column>
             </DataTable>
-            <div class="p-text-right p-mb-3">
-              <strong>SubTotal General:
-                {{ (subtotalVista * parseFloat(monedaVenta[0])).toFixed(2) }}
-                {{ monedaVenta[1] }}</strong>
+          </div>
+
+          <!-- RESUMEN DE TOTALES -->
+          <div class="detalle-resumen-pro">
+            <div class="resumen-linea-pro">
+              <span>SubTotal General</span>
+              <strong>{{ (subtotalVista * parseFloat(monedaVenta[0])).toFixed(2) }} {{ monedaVenta[1] }}</strong>
             </div>
-            <div class="p-text-right p-mb-3">
-              <strong>Descuento Adicional:
-                {{ (descuentoAdicionalvista * parseFloat(monedaVenta[0])).toFixed(2) }}
-                {{ monedaVenta[1] }}</strong>
+            <div class="resumen-linea-pro">
+              <span>Descuento Adicional</span>
+              <strong>{{ (descuentoAdicionalvista * parseFloat(monedaVenta[0])).toFixed(2) }} {{ monedaVenta[1]
+              }}</strong>
             </div>
-            <div class="p-text-right p-mb-3">
-              <strong>Total Neto:
-                {{ (total * parseFloat(monedaVenta[0])).toFixed(2) }}
-                {{ monedaVenta[1] }}</strong>
+            <div class="resumen-linea-pro total-final-pro">
+              <span>Total Neto</span>
+              <strong>{{ (total * parseFloat(monedaVenta[0])).toFixed(2) }} {{ monedaVenta[1] }}</strong>
             </div>
-            <div class="p-text-right">
-              <Button @click="ocultarDetalle()" label="Cerrar" icon="pi pi-times" severity="danger"
-                class="p-button-sm p-button-danger p-mr-1" />
-            </div>
-          </template>
-        </Card>
+          </div>
+
+          <!-- BOTÓN -->
+          <div class="detalle-footer-pro">
+            <Button @click="ocultarDetalle()" label="Cerrar" icon="pi pi-times" severity="danger"
+              class="p-button-danger p-button-sm btn-mini" />
+          </div>
+        </div>
       </template>
     </Panel>
 
@@ -239,17 +234,13 @@
         :closeOnEscape="false" class="responsive-dialog">
         <template #header>
           <div class="modal-header">
-            <button class="close-button" @click="modal2 = false">×</button>
-            <h5 class="modal-title">DETALLE VENTAS</h5>
+            <h5 class="modal-title">Detalle de Venta</h5>
+            <button class="close-button" @click="modal2 = false">
+              <i class="pi pi-times"></i>
+            </button>
           </div>
         </template>
         <div class="p-fluid">
-          <div class="p-field">
-            <div class="step-indicators">
-              <span :class="['step', { active: step === 1, completed: step > 1 }]">1</span>
-              <span :class="['step', { active: step === 2, completed: step > 2 }]">2</span>
-            </div>
-          </div>
           <div v-if="step === 2" class="step-content p-fluid">
             <div class="p-grid p-formgrid align-items-start">
               <div class="p-col-12 p-md-6 d-flex flex-column justify-content-start">
@@ -466,15 +457,15 @@
           </div>
 
           <div v-if="step === 1" class="step-content">
-            <div class="p-fluid p-grid">
+            <div class="p-fluid p-grid form-section">
               <div class="p-col-12 p-md-6">
-                <label class="p-d-block">Almacen <span class="p-error">*</span></label>
+                <label class="input-label">Almacén <span class="p-error">*</span></label>
                 <Dropdown v-model="selectedAlmacen" :options="arrayAlmacenes" optionLabel="nombre_almacen"
                   optionValue="id" placeholder="Seleccione un almacén" @change="getAlmacenProductos" />
               </div>
 
               <div class="p-col-12 p-md-6">
-                <label class="p-d-block">Buscar artículo</label>
+                <label class="input-label">Buscar artículo</label>
                 <div class="input-con-desplegable">
                   <div class="p-inputgroup">
                     <InputText ref="inputCodigo" v-model="codigo" placeholder="Buscar por nombre, código o alfanumérico"
@@ -483,13 +474,11 @@
                     <Button icon="pi pi-search" :disabled="!selectedAlmacen" @click="abrirModal" />
                   </div>
 
-                  <!-- Lista desplegable -->
                   <ul v-if="mostrarDesplegable" class="desplegable-simple">
                     <li v-for="(articulo, index) in resultadosBusqueda" :key="articulo.id"
                       @click="seleccionarArticulo(articulo)" :class="{ seleccionado: index === indiceSeleccionado }">
                       {{ articulo.nombre }} / {{ articulo.nombre_proveedor || 'N/A' }} / {{ articulo.precio_uno ||
-                        '0.00' }}
-
+                      '0.00' }}
                     </li>
                   </ul>
                 </div>
@@ -499,7 +488,7 @@
             <DataTable :value="arrayDetalle" class="p-mt-3">
               <Column header="Opciones" style="width: 10%">
                 <template #body="slotProps">
-                  <Button icon="pi pi-trash" class="p-button-danger p-button-sm" @click="
+                  <Button icon="pi pi-trash" class="p-button-danger p-button-sm btn-mini" @click="
                     slotProps.data.medida != 'KIT'
                       ? eliminarDetalle(slotProps.data.id)
                       : eliminarKit(slotProps.data.idkit)
@@ -579,10 +568,10 @@
     </template>
 
     <template>
-      <Dialog :visible="modal" :containerStyle="dialogContainerStyle" style="padding-top: 35px;" :modal="true"
+      <Dialog :visible="modal" :containerStyle="dialogContainerStyle" style="padding-top: 5px;" :modal="true"
         :closable="false" class="responsive-dialog">
         <template #header>
-          <h3>{{ tituloModal }}</h3>
+          <h4>{{ tituloModal }}</h4>
         </template>
         <TabView>
           <TabPanel header="Productos">
@@ -605,10 +594,10 @@
               class="p-mt-2 p-datatable-gridlines p-datatable-sm" responsiveLayout="scroll">
               <Column header="Opciones" style="width: 120px">
                 <template #body="slotProps">
-                  <Button icon="pi pi-check" class="p-button-success p-button-sm" style="width: 28px; height: 28px"
+                  <Button icon="pi pi-check" class="p-button-success p-button-sm btn-mini"
                     @click="agregarDetalleModal(slotProps.data)" />
-                  <Button icon="pi pi-info-circle" class="p-button-info p-button-sm"
-                    style="width: 28px; height: 28px; margin-left: 5px;" @click="verStockPorSucursal(slotProps.data)" />
+                  <Button icon="pi pi-info-circle" class="p-button-info p-button-sm btn-mini"
+                    @click="verStockPorSucursal(slotProps.data)" />
                 </template>
               </Column>
               <Column field="nombre" header="Nombre" />
@@ -827,7 +816,7 @@
 
         <!-- 🔹 Footer elegante -->
         <div style="background: #f9f9f9; padding: 1rem; text-align: right; border-top: 1px solid #eee;">
-          <Button label="Cerrar" icon="pi pi-times" class="p-button-rounded p-button-secondary p-button-sm"
+          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger p-button-sm btn-mini"
             @click="dialogStockVisible = false" />
         </div>
       </Dialog>
@@ -1197,27 +1186,27 @@ export default {
 
   methods: {
     calcularSubtotal() {
-  let subtotal = 0.0;
+      let subtotal = 0.0;
 
-  for (let i = 0; i < this.arrayDetalle.length; i++) {
-    let detalle = this.arrayDetalle[i];
+      for (let i = 0; i < this.arrayDetalle.length; i++) {
+        let detalle = this.arrayDetalle[i];
 
-    // 🔹 Calcular descuento como porcentaje
-    const precio = parseFloat(detalle.precioseleccionado) || 0;
-    const cantidad = parseFloat(detalle.cantidad) || 0;
-    const porcentajeDescuento = parseFloat(detalle.descuento) || 0;
+        // 🔹 Calcular descuento como porcentaje
+        const precio = parseFloat(detalle.precioseleccionado) || 0;
+        const cantidad = parseFloat(detalle.cantidad) || 0;
+        const porcentajeDescuento = parseFloat(detalle.descuento) || 0;
 
-    const totalBruto = precio * cantidad;
-    const montoDescuento = totalBruto * (porcentajeDescuento / 100);
-    let totalDetalle = totalBruto - montoDescuento;
+        const totalBruto = precio * cantidad;
+        const montoDescuento = totalBruto * (porcentajeDescuento / 100);
+        let totalDetalle = totalBruto - montoDescuento;
 
-    if (totalDetalle < 0) totalDetalle = 0;
+        if (totalDetalle < 0) totalDetalle = 0;
 
-    subtotal += totalDetalle;
-  }
+        subtotal += totalDetalle;
+      }
 
-  return subtotal;
-},
+      return subtotal;
+    },
     handleClickFuera: function (event) {
       // 🔹 Solo hacer algo si el desplegable está visible
       if (!this.mostrarDesplegable) return;
@@ -2320,31 +2309,31 @@ export default {
 
         if (ventaId > 0) {
           // Preparar arrayFactura
-  me.arrayProductos = detalles.map(data => {
-  const precio = parseFloat(data.precio_venta) || 0;
-  const cantidad = parseFloat(data.cantidad) || 0;
-  const descuentoPorcentaje = parseFloat(data.montoDescuento) || 0; // 👈 viene en %
-  
-  // 💰 Calcular el monto real del descuento
-  const montoDescuento = (precio * cantidad * descuentoPorcentaje / 100).toFixed(2);
-  const subTotal = (precio * cantidad - montoDescuento).toFixed(2);
+          me.arrayProductos = detalles.map(data => {
+            const precio = parseFloat(data.precio_venta) || 0;
+            const cantidad = parseFloat(data.cantidad) || 0;
+            const descuentoPorcentaje = parseFloat(data.montoDescuento) || 0; // 👈 viene en %
 
-  return {
-    actividadEconomica: data.actividadEconomica,
-    codigoProductoSin: data.codigoProductoSin,
-    codigoProducto: data.codigo,
-    descripcion: data.nombre,
-    cantidad: cantidad,
-    unidadMedida: data.unidadMedida,
-    precioUnitario: precio.toFixed(2),
-    montoDescuento: montoDescuento, // 💰 monto real del descuento (no porcentaje)
-    subTotal: subTotal,              // 🧾 precio con descuento aplicado
-    numeroSerie: null,
-    numeroImei: null,
-  };
-});
+            // 💰 Calcular el monto real del descuento
+            const montoDescuento = (precio * cantidad * descuentoPorcentaje / 100).toFixed(2);
+            const subTotal = (precio * cantidad - montoDescuento).toFixed(2);
 
-console.log("Para la Factura: ", me.arrayProductos);
+            return {
+              actividadEconomica: data.actividadEconomica,
+              codigoProductoSin: data.codigoProductoSin,
+              codigoProducto: data.codigo,
+              descripcion: data.nombre,
+              cantidad: cantidad,
+              unidadMedida: data.unidadMedida,
+              precioUnitario: precio.toFixed(2),
+              montoDescuento: montoDescuento, // 💰 monto real del descuento (no porcentaje)
+              subTotal: subTotal,              // 🧾 precio con descuento aplicado
+              numeroSerie: null,
+              numeroImei: null,
+            };
+          });
+
+          console.log("Para la Factura: ", me.arrayProductos);
 
           if (tipoComprobante === 'FACTURA') {
             me.mostrarDesplegable = false;
@@ -3410,8 +3399,7 @@ console.log("Para la Factura: ", me.arrayProductos);
       this.selectAlmacen();
       this.arrayArticulo = [];
       this.modal = true;
-      this.tituloModal = "Agregar a carrito";
-      console.log("entro siii");
+      this.tituloModal = "Buscar productos";
     },
 
     desactivarVenta(id) {
@@ -3734,6 +3722,147 @@ console.log("Para la Factura: ", me.arrayProductos);
 </script>
 
 <style scoped>
+.form-section {
+  margin-bottom: 1rem;
+}
+
+.input-label {
+  display: block;
+  font-size: 0.8rem;
+  /* más pequeño */
+  font-weight: 600;
+  /* seminegrita */
+  color: #374151;
+  /* gris oscuro elegante */
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  /* opcional: da un toque más pro */
+}
+
+.p-error {
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+/* ===== CONTENEDOR GENERAL ===== */
+.detalle-venta-pro {
+  background: #ffffff;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  max-width: 1500px;
+  margin: 0 auto;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  animation: fadeIn 0.4s ease;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+/* ===== ENCABEZADO ===== */
+.detalle-header-pro {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 0.1rem;
+  margin-bottom: 1rem;
+}
+
+.detalle-titulo-pro {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.detalle-subtitulo-pro {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.detalle-meta-pro {
+  display: flex;
+  gap: 2rem;
+}
+
+.label-pro {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.04em;
+}
+
+.valor-pro {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 0.15rem;
+}
+
+/* ===== CLIENTE ===== */
+.detalle-cliente-pro {
+  background: #f9fafb;
+  border-radius: 0.2rem;
+  padding: 0.05rem 1rem;
+  margin-bottom: 1.0rem;
+  border: 1px solid #e5e7eb;
+}
+
+/* ===== TABLA ===== */
+.detalle-tabla-pro .p-datatable {
+  border-radius: 0.2rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.p-datatable tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* ===== RESUMEN ===== */
+.detalle-resumen-pro {
+  margin-top: 1.2rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  text-align: right;
+}
+
+.resumen-linea-pro {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.total-final-pro {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* ===== FOOTER ===== */
+.detalle-footer-pro {
+  margin-top: 2rem;
+  text-align: right;
+}
+
+/* ===== ANIMACIÓN ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .input-con-desplegable {
   position: relative;
   width: 100%;
@@ -3869,11 +3998,11 @@ console.log("Para la Factura: ", me.arrayProductos);
 
 /* DataTable Responsive */
 >>>.p-datatable {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 >>>.p-datatable .p-datatable-tbody>tr>td {
-  padding: 0.5rem;
+  padding: 0.4rem;
   word-break: break-word;
   text-align: left;
 }
@@ -4214,24 +4343,49 @@ console.log("Para la Factura: ", me.arrayProductos);
 }
 
 .modal-header {
+  width: 100%;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-}
-
-.close-button {
-  border: none;
-  background: transparent;
-  font-size: 1.5rem;
-  cursor: pointer;
-  margin-right: 1rem;
-  /* Space between the button and the title */
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem 1.5rem;
+  margin: 0;
+  box-sizing: border-box;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
 }
 
 .modal-title {
   margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: -0.01em;
   flex: 1;
-  /* This allows the title to take up remaining space */
+  text-align: left;
+}
+
+.close-button {
+  border: none;
+  background: #de0000;
+  color: #ffffff;
+  font-size: 1rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.close-button:hover {
+  background: #e5e7eb;
+  color: #111827;
+  transform: scale(1.05);
+  cursor: pointer;
 }
 
 /* Estilos del loader */

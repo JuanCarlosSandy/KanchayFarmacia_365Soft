@@ -151,8 +151,8 @@
       <ImportarExcelCliente @cerrar="cerrarModalImportar"></ImportarExcelCliente>
     </Dialog>
 
-    <Dialog header="💰 Configuración de Monto Bonificación" :visible.sync="dialogMontoCliente" :modal="true"
-      :closable="false" :containerStyle="{ width: '420px', borderRadius: '12px', overflow: 'hidden' }">
+    <Dialog header="Configuración de Monto Bonificación" :visible.sync="dialogMontoCliente" :modal="true"
+      :closable="false" :containerStyle="{ width: '500px', borderRadius: '12px', overflow: 'hidden' }">
 
       <div class="p-fluid p-3" style="background-color: #f9fafb; border-radius: 8px;">
         <!-- Encabezado descriptivo -->
