@@ -57,24 +57,75 @@
 
                 <!-- contenido1 -->
                 <div class="card-body" v-show="activeTab === 0">
+                    <div class="row mb-3">
+                        <div class="col">
+                        <label for="yearInput">Gestión:</label>
+                        <div class="input-group">
+                            <input
+                            type="number"
+                            id="yearInput"
+                            class="form-control"
+                            v-model="selectedYear"
+                            min="1900"
+                            max="2100"
+                            />
+                        </div>
+                        </div>
+                    </div>
                     <div class="row">
                         <div class="col">
-                            <label for="yearInput">Gestion:</label>
-                            <div class="input-group">
-                                <input type="number" id="yearInput" class="form-control" v-model="selectedYear" min="1900"
-                                    max="2100">
-                            </div>
+                            <button class="btn btn-primary" @click="guardar()">Guardar</button>
+                            <button class="btn btn-secondary" @click="cancelar">Cancelar</button>
                         </div>
-                        <!--<div class="col">
-                            <div class="form-group">
-                                <label for="opcion2">Codigo productos:</label>
-                                <select v-model="codigoProducto" class="form-control">
-                                    <option value="00000">00000</option>
-                                    <option value="55555">55555</option>
-                                    <option value="33333">33333</option>
-                                </select>
-                            </div>
-                        </div>-->
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                        <label for="venta1Input">Venta 1:</label>
+                        <div class="input-group">
+                            <input
+                            type="number"
+                            id="venta1Input"
+                            class="form-control"
+                            v-model.number="precio_uno"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            />
+                            <span class="input-group-text">%</span>
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- Campo Venta 2 -->
+                    <div class="row mb-4">
+                        <div class="col">
+                        <label for="venta2Input">Venta 2:</label>
+                        <div class="input-group">
+                            <input
+                            type="number"
+                            id="venta2Input"
+                            class="form-control"
+                            v-model.number="precio_dos"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            />
+                            <span class="input-group-text">%</span>
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- Botón Guardar -->
+                    <div class="row">
+                        <div class="col">
+                        <Button
+                            label="Guardar"
+                            icon="pi pi-save"
+                            class="p-button-success"
+                            :loading="isLoading"
+                            @click="guardarPrecios"
+                            />
+                        </div>
                     </div>
                     <!--<div class="row">
                         <div class="col">
@@ -244,12 +295,7 @@
 
 
 
-                    <div class="row">
-                        <div class="col">
-                            <button class="btn btn-primary" @click="guardar()">Guardar</button>
-                            <button class="btn btn-secondary" @click="cancelar">Cancelar</button>
-                        </div>
-                    </div>
+                    
                 </div>
 
 
@@ -441,6 +487,8 @@ export default {
             idUsuarioSeleccionado: '',
             puedeDescontar: false,
             listaUsuarios: [], // Aquí cargarás los usuarios
+            precio_uno: 0,
+            precio_dos: 0,
         };
     },
     computed: {
@@ -450,6 +498,73 @@ export default {
     }
   },
     methods: {
+        toastSuccess(mensaje) {
+            this.$toasted.show(
+                `
+            <div style="height: 50px;font-size:16px;">
+                <br>
+                ` +
+                mensaje +
+                `.<br>
+            </div>`,
+                {
+                type: "success",
+                position: "bottom-right",
+                duration: 2000,
+                }
+            );
+        },
+        async cargarPrecios() {
+            try {
+                const response = await axios.get("/configuracion/porcentajes");
+                const precios = response.data;
+
+                const venta1 = precios.find((p) => p.nombre_precio === "VENTA 1");
+                const venta2 = precios.find((p) => p.nombre_precio === "VENTA 2");
+
+                this.precio_uno = venta1 ? venta1.porcentage : 0;
+                this.precio_dos = venta2 ? venta2.porcentage : 0;
+            } catch (error) {
+                console.error("❌ Error al cargar precios:", error);
+            }
+            },
+
+            async guardarPrecios() {
+                const me = this; // 🔹 para mantener el contexto
+                me.isLoading = true; // 🔹 activa el loading
+
+                try {
+                    const payload = [
+                        { nombre_precio: "VENTA 1", porcentage: me.precio_uno },
+                        { nombre_precio: "VENTA 2", porcentage: me.precio_dos },
+                    ];
+
+                    const response = await axios.put("/configuracion/porcentajes", payload);
+
+                    me.isLoading = false; // 🔹 desactiva el loading
+
+                    // ✅ Mostrar toast personalizado
+                    me.toastSuccess("Porcentajes actualizados correctamente");
+
+                    console.log("📦 Datos guardados:", response.data);
+
+                } catch (error) {
+                    me.isLoading = false;
+                    console.error("❌ Error al guardar precios:", error);
+
+                    // ❌ Mostrar toast de error (usando tu helper también si lo tenés)
+                    if (typeof me.toastError === "function") {
+                        me.toastError("No se pudo actualizar los porcentajes");
+                    } else {
+                        me.$toast.add({
+                            severity: "error",
+                            summary: "Error al guardar",
+                            detail: "No se pudo actualizar los porcentajes.",
+                            life: 4000,
+                        });
+                    }
+                }
+            },
 
         async listarMonedas() {
             try {
@@ -676,15 +791,39 @@ export default {
             }
         }
     },
+    watch: {
+        precio_uno(nuevo, viejo) {
+            if (viejo !== undefined && nuevo !== viejo) {
+            this.$toast.add({
+                severity: "info",
+                summary: "Campo modificado",
+                detail: "Has cambiado el valor de Venta 1.",
+                life: 2500,
+            });
+            }
+        },
+        precio_dos(nuevo, viejo) {
+            if (viejo !== undefined && nuevo !== viejo) {
+            this.$toast.add({
+                severity: "info",
+                summary: "Campo modificado",
+                detail: "Has cambiado el valor de Venta 2.",
+                life: 2500,
+            });
+            }
+        },
+        },
 
     created() {
         this.obtenerAlmacenes();
     },
 
 async mounted() {
+    
     try {
         this.isLoading = true; // Activar loading
         await Promise.all([
+            this.cargarPrecios(),
             this.listarMonedas(),
             this.listarPrecio(),
             this.obtenerUsuarios(),

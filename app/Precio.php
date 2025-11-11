@@ -6,13 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Precio extends Model
 {
+    
     protected $table = 'precios';
+    public $timestamps = false;
 
     protected $fillable = [
         'nombre_precio',
-        'porcentage',
-        'condicion',
+        'porcentaje'
     ];
+
 
     // Relación con el modelo Articulo
     public function articulo()

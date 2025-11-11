@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Almacen;
+use App\Precio;
 use Illuminate\Http\Request;
 use App\ConfiguracionTrabajo;
 use Illuminate\Support\Facades\DB;
@@ -175,6 +176,53 @@ class ConfiguracionTrabajoController extends Controller
     public function destroy($id)
     {
         //
+    }
+
+    public function getPorcentajes()
+    {
+        try {
+            // Recupera todos los registros de la tabla precios
+            $precios = Precio::select('id', 'nombre_precio', 'porcentage')->get();
+
+            return response()->json($precios, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al obtener los porcentajes.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function putPorcentajes(Request $request)
+    {
+        try {
+            $data = $request->all();
+            $registrosActualizados = [];
+
+            foreach ($data as $item) {
+                // Buscamos el registro por nombre_precio
+                $precio = Precio::where('nombre_precio', $item['nombre_precio'])->first();
+
+                if ($precio) {
+                    $precio->porcentage = $item['porcentage']; // 👈 campo correcto
+                    $precio->updated_at = now();               // 👈 actualiza manualmente (por si timestamps no lo hace)
+                    $precio->save();
+
+                    // Agregamos el registro actualizado al array
+                    $registrosActualizados[] = $precio;
+                }
+            }
+
+            return response()->json([
+                'message' => 'Porcentajes actualizados correctamente.',
+                'data' => $registrosActualizados
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al actualizar los porcentajes.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function listarAlmacen()

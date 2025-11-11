@@ -166,6 +166,14 @@ Route::group(["middleware" => ["auth"]], function () {
             "/configuracion/editar",
             "ConfiguracionTrabajoController@edit"
         );
+        Route::get(
+            "/configuracion/porcentajes",
+            "ConfiguracionTrabajoController@getPorcentajes"
+        );
+        Route::put(
+            "/configuracion/porcentajes",
+            "ConfiguracionTrabajoController@PutPorcentajes"
+        );
         Route::put(
             "/configuracion/actualizar",
             "ConfiguracionTrabajoController@update"

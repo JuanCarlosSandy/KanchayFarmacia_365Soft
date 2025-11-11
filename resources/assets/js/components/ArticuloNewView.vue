@@ -703,6 +703,42 @@ export default {
     },
   },
   methods: {
+    calcularVentasDesdeCosto() {
+      if (this.datosFormulario.precio_costo_unid && this.datosFormulario.precio_costo_unid > 0) {
+        const costo = parseFloat(this.datosFormulario.precio_costo_unid);
+
+        // 🔹 Tomamos los porcentajes actuales (ya cargados)
+        const venta1 = this.precios.find((p) => p.id === 1);
+        const venta2 = this.precios.find((p) => p.id === 2);
+
+        // 🔹 Calculamos los precios de venta según el porcentaje
+        if (venta1) {
+          venta1.valor = parseFloat((costo + (costo * venta1.porcentaje / 100)).toFixed(2));
+        }
+        if (venta2) {
+          venta2.valor = parseFloat((costo + (costo * venta2.porcentaje / 100)).toFixed(2));
+        }
+      }
+    },
+    async cargarPreciosGlobales() {
+      try {
+        const response = await axios.get("/configuracion/porcentajes");
+        const precios = response.data;
+
+        const venta1 = precios.find((p) => p.nombre_precio === "VENTA 1");
+        const venta2 = precios.find((p) => p.nombre_precio === "VENTA 2");
+
+        // Retornamos los porcentajes
+        return {
+          venta1: venta1 ? venta1.porcentage : 0,
+          venta2: venta2 ? venta2.porcentage : 0,
+        };
+      } catch (error) {
+        console.error("❌ Error al cargar precios globales:", error);
+        return { venta1: 0, venta2: 0 };
+      }
+    },
+
     calcularPrecio(porcentaje) {
       const costo = Number(this.datosFormulario.precio_costo_unid) || 0;
       const porc = Number(porcentaje);
@@ -767,14 +803,38 @@ export default {
     },
 
     onCostoChange() {
-      const costo = Number(this.datosFormulario.precio_costo_unid);
-      if (isNaN(costo)) return;
-      this.precios.forEach(precio => {
-        if (precio.porcentaje > 0) {
-          precio.valor = this.calcularPrecio(precio.porcentaje);
-          this.sincronizarPrecios(precio);
-        }
-      });
+      this.validarCampo('precio_costo_unid');
+
+      const costo = parseFloat(this.datosFormulario.precio_costo_unid || 0);
+      if (costo <= 0) return;
+
+      const venta1 = this.precios.find(p => p.id === 1);
+      const venta2 = this.precios.find(p => p.id === 2);
+
+      // 🧩 Si existen porcentajes y el valor está vacío → calcular valor
+      if (venta1 && venta1.porcentaje > 0 && (!venta1.valor || venta1.valor === 0)) {
+        venta1.valor = parseFloat((costo + (costo * venta1.porcentaje / 100)).toFixed(2));
+      }
+
+      if (venta2 && venta2.porcentaje > 0 && (!venta2.valor || venta2.valor === 0)) {
+        venta2.valor = parseFloat((costo + (costo * venta2.porcentaje / 100)).toFixed(2));
+      }
+
+      // 🧮 Si existe valor y costo, recalculamos porcentaje y controlamos negativos
+      if (venta1 && venta1.valor > 0) {
+        let porc1 = ((venta1.valor - costo) / costo) * 100;
+        venta1.porcentaje = parseFloat((porc1 < 0 ? 0 : porc1).toFixed(2));
+        // ⚠️ Si el precio de venta es menor que el costo, mostramos error
+        venta1.errorVenta = venta1.valor < costo;
+      }
+
+      if (venta2 && venta2.valor > 0) {
+        let porc2 = ((venta2.valor - costo) / costo) * 100;
+        venta2.porcentaje = parseFloat((porc2 < 0 ? 0 : porc2).toFixed(2));
+        venta2.errorVenta = venta2.valor < costo;
+      }
+
+      console.log("✅ Costo:", costo, "| VENTA 1:", venta1, "| VENTA 2:", venta2);
     },
     mostrarDetalles(articulo) {
       this.articuloSeleccionado = articulo;
@@ -1259,7 +1319,12 @@ export default {
       me.listarArticulo(page, buscar, criterio);
     },
     calcularPrecioValorMoneda(precio) {
-      return Number((precio * parseFloat(this.monedaPrincipal)).toFixed(2));
+      const tasa = Array.isArray(this.monedaPrincipal)
+        ? parseFloat(this.monedaPrincipal[0]) || 1
+        : parseFloat(this.monedaPrincipal) || 1;
+
+      const valor = parseFloat(precio) || 0;
+      return Number((valor * tasa).toFixed(2));
     },
     registrarArticulo(data) {
       let me = this;
@@ -1457,140 +1522,187 @@ export default {
         case "articulo": {
           switch (accion) {
             case "registrar": {
-              this.dialogVisible = true;
-              this.tituloModal = "Registrar Artículo";
-              this.agregarStock = false;
-              this.tipoAccion = 1;
-              this.fotografia = "";
+              this.cerrarModal();
 
-              this.datosFormulario = {
-                nombre: "",
-                descripcion: "",
-                nombre_generico: "",
-                unidad_envase: null,
-                precio_costo_unid: null,
-                precio_costo_paq: null,
-                precio_venta: null,
-                precio_uno: null,
-                precio_dos: null,
-                precio_tres: null,
-                precio_cuatro: null,
-                stock: null,
-                costo_compra: null,
-                codigo: "",
-                codigo_alfanumerico: "",
-                descripcion_fabrica: "",
-                idcategoria: null,
-                idmarca: null,
-                idindustria: null,
-                idgrupo: null,
-                idproveedor: null,
-                idmedida: null,
-              };
-              this.errores = {};
+              this.$nextTick(async () => {
+                this.dialogVisible = true;
+                this.tituloModal = "Registrar Artículo";
+                this.agregarStock = false;
+                this.tipoAccion = 1;
+                this.fotografia = "";
+
+                // 🔹 Cargar precios desde la tabla global
+                const preciosGlobales = await this.cargarPreciosGlobales();
+
+                // 🔹 Inicializar precios con los valores traídos
+                this.precios = [
+                  {
+                    id: 1,
+                    nombre_precio: "VENTA 1",
+                    valor: 0,
+                    porcentaje: preciosGlobales.venta1,
+                    errorVenta: false,
+                  },
+                  {
+                    id: 2,
+                    nombre_precio: "VENTA 2",
+                    valor: 0,
+                    porcentaje: preciosGlobales.venta2,
+                    errorVenta: false,
+                  },
+                ];
+
+                this.datosFormulario = {
+                  nombre: "",
+                  descripcion: "",
+                  nombre_generico: "",
+                  unidad_envase: null,
+                  precio_costo_unid: null,
+                  precio_costo_paq: null,
+                  precio_venta: null,
+                  precio_uno: null,
+                  precio_dos: null,
+                  precio_tres: null,
+                  precio_cuatro: null,
+                  stock: null,
+                  costo_compra: null,
+                  codigo: "",
+                  codigo_alfanumerico: "",
+                  descripcion_fabrica: "",
+                  idcategoria: null,
+                  idmarca: null,
+                  idindustria: null,
+                  idgrupo: null,
+                  idproveedor: null,
+                  idmedida: null,
+                };
+
+                this.errores = {};
+                this.fechaVencimientoSeleccion = false;
+              });
+
               break;
             }
             case "actualizar": {
-              console.log("DATA ACTUALIZAR", data);
-              this.agregarStock = false;
-              this.dialogVisible = true;
-              this.tituloModal = "Actualizar Artículo";
-              this.tipoAccion = 2;
-              this.datosFormulario = {
-                nombre: data["nombre"],
-                descripcion: data["descripcion"],
-                nombre_generico: data["nombre_generico"],
-                unidad_envase: data["unidad_envase"],
-                precio_costo_unid: this.calcularPrecioValorMoneda(
-                  data["precio_costo_unid"]
-                ),
-                precio_costo_paq: this.calcularPrecioValorMoneda(
-                  data["precio_costo_paq"]
-                ),
-                precio_venta: this.calcularPrecioValorMoneda(
-                  data["precio_venta"]
-                ),
-                precio_uno: 0,
-                precio_dos: 0,
-                precio_tres: 0,
-                precio_cuatro: 0,
-                stock:
-                  this.tipo_stock == "paquetes"
-                    ? data["stock"] / data["unidad_envase"]
-                    : data["stock"],
-                costo_compra: this.calcularPrecioValorMoneda(
-                  data["costo_compra"]
-                ),
-                codigo: data["codigo"],
-                codigo_alfanumerico: data["codigo_alfanumerico"]
-                  ? data["codigo_alfanumerico"]
-                  : "",
-                descripcion_fabrica: data["descripcion_fabrica"]
-                  ? data["descripcion_fabrica"]
-                  : "",
-                idcategoria: null,
-                idmarca: null,
-                idindustria: null,
-                idgrupo: null,
-                idproveedor: null,
-                idmedida: data["idmedida"],
-                id: data["id"],
-              };
-              this.errores = {};
-              this.idmedida = data["idmedida"];
+              this.cerrarModal();
+              this.$nextTick(() => {
+                console.log("DATA ACTUALIZAR", data);
+                this.agregarStock = false;
+                this.dialogVisible = true;
+                this.tituloModal = "Actualizar Artículo";
+                this.tipoAccion = 2;
+                this.datosFormulario = {
+                  nombre: data["nombre"],
+                  descripcion: data["descripcion"],
+                  nombre_generico: data["nombre_generico"],
+                  unidad_envase: data["unidad_envase"],
+                  precio_costo_unid: this.calcularPrecioValorMoneda(data["precio_costo_unid"]),
+                  precio_costo_paq: this.calcularPrecioValorMoneda(data["precio_costo_paq"]),
+                  precio_venta: this.calcularPrecioValorMoneda(data["precio_venta"]),
+                  precio_uno: 0,
+                  precio_dos: 0,
+                  precio_tres: 0,
+                  precio_cuatro: 0,
+                  stock:
+                    this.tipo_stock == "paquetes"
+                      ? data["stock"] / data["unidad_envase"]
+                      : data["stock"],
+                  costo_compra: this.calcularPrecioValorMoneda(data["costo_compra"]),
+                  codigo: data["codigo"],
+                  codigo_alfanumerico: data["codigo_alfanumerico"] || "",
+                  descripcion_fabrica: data["descripcion_fabrica"] || "",
+                  idcategoria: null,
+                  idmarca: null,
+                  idindustria: null,
+                  idgrupo: null,
+                  idproveedor: null,
+                  idmedida: data["idmedida"],
+                  id: data["id"],
+                };
 
-              this.fotografia = data["fotografia"];
-              this.fotoMuestra = data["fotografia"]
-                ? "img/articulo/" + data["fotografia"]
-                : null;
-              //this.industriaseleccionada = { nombre: data['industriaseleccionada.nombre'] };
+                this.errores = {};
+                this.idmedida = data["idmedida"];
+                this.fotografia = data["fotografia"];
+                this.fotoMuestra = data["fotografia"]
+                  ? "img/articulo/" + data["fotografia"]
+                  : null;
 
-              //this.industriaseleccionada = {nombre: data['nombre_industria']};
-              this.industriaSeleccionado = {
-                nombre: data["nombre_industria"],
-                id: data["idindustria"],
-              };
-              //this.lineaseleccionada = {nombre: data['nombre_categoria']};
-              this.lineaSeleccionado = {
-                nombre: data["nombre_categoria"],
-                id: data["idcategoria"],
-              };
-              //this.marcaseleccionada = {nombre: data['nombre_marca']};
-              this.marcaSeleccionado = {
-                nombre: data["nombre_marca"],
-                id: data["idmarca"],
-              };
-              this.proveedorSeleccionado = {
-                nombre: data["nombre_proveedor"],
-                id: data["idproveedor"],
-              };
-              //this.gruposeleccionada = {nombre_grupo: data['nombre_grupo']};
-              this.grupoSeleccionado = {
-                nombre_grupo: data["nombre_grupo"],
-                id: data["idgrupo"],
-              };
-              this.medidaSeleccionado = {
-                descripcion_medida: data["descripcion_medida"],
-                id: data["idmedida"],
-              };
+                this.industriaSeleccionado = {
+                  nombre: data["nombre_industria"],
+                  id: data["idindustria"],
+                };
+                this.lineaSeleccionado = {
+                  nombre: data["nombre_categoria"],
+                  id: data["idcategoria"],
+                };
+                this.marcaSeleccionado = {
+                  nombre: data["nombre_marca"],
+                  id: data["idmarca"],
+                };
+                this.proveedorSeleccionado = {
+                  nombre: data["nombre_proveedor"],
+                  id: data["idproveedor"],
+                };
+                this.grupoSeleccionado = {
+                  nombre_grupo: data["nombre_grupo"],
+                  id: data["idgrupo"],
+                };
+                this.medidaSeleccionado = {
+                  descripcion_medida: data["descripcion_medida"],
+                  id: data["idmedida"],
+                };
 
-              this.precio_uno = this.calcularPrecioValorMoneda(
-                data["precio_uno"]
-              );
-              this.precio_dos = this.calcularPrecioValorMoneda(
-                data["precio_dos"]
-              );
-              this.precio_tres = this.calcularPrecioValorMoneda(
-                data["precio_tres"]
-              );
-              this.precio_cuatro = this.calcularPrecioValorMoneda(
-                data["precio_cuatro"]
-              );
-              // this.precios.forEach((precio) => {
-              //     this.calcularPrecio(precio);
-              // });
-              this.fechaVencimientoSeleccion =
-                data["vencimiento"] === 1 ? true : false;
+                this.precios = [];
+
+                this.precio_uno = Number(this.calcularPrecioValorMoneda(data["precio_uno"])) || 0;
+                this.precio_dos = Number(this.calcularPrecioValorMoneda(data["precio_dos"])) || 0;
+                this.precio_tres = Number(this.calcularPrecioValorMoneda(data["precio_tres"])) || 0;
+                this.precio_cuatro = Number(this.calcularPrecioValorMoneda(data["precio_cuatro"])) || 0;
+
+                this.$nextTick(() => {
+                  this.precios = [
+                    {
+                      id: 1,
+                      nombre_precio: "VENTA 1",
+                      valor: this.precio_uno,
+                      porcentaje: this.calcularPorcentaje(this.precio_uno),
+                      errorVenta: false
+                    },
+                    {
+                      id: 2,
+                      nombre_precio: "VENTA 2",
+                      valor: this.precio_dos,
+                      porcentaje: this.calcularPorcentaje(this.precio_dos),
+                      errorVenta: false
+                    }
+                  ];
+
+                  if (this.precio_tres > 0) {
+                    this.precios.push({
+                      id: 3,
+                      nombre_precio: "VENTA 3",
+                      valor: this.precio_tres,
+                      porcentaje: this.calcularPorcentaje(this.precio_tres),
+                      errorVenta: false
+                    });
+                  }
+
+                  if (this.precio_cuatro > 0) {
+                    this.precios.push({
+                      id: 4,
+                      nombre_precio: "VENTA 4",
+                      valor: this.precio_cuatro,
+                      porcentaje: this.calcularPorcentaje(this.precio_cuatro),
+                      errorVenta: false
+                    });
+                  }
+
+                  this.$forceUpdate();
+                });
+
+                this.fechaVencimientoSeleccion = data["vencimiento"] === 1 ? true : false;
+              });
+
               break;
             }
             case "registrarInd": {
