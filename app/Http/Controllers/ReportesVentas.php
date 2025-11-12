@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DetalleVenta;
 use App\Moneda;
 use App\Venta;
+use App\Sucursales;
 use App\Exports\VentasGeneralExport;
 use App\Exports\VentasDetalladasExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -307,21 +308,25 @@ class ReportesVentas extends Controller
     {
         $query = Venta::join('personas', 'ventas.idcliente', '=', 'personas.id')
             ->join('users', 'ventas.idusuario', '=', 'users.id')
+            ->join('sucursales', 'users.idsucursal', '=', 'sucursales.id')
             ->select(
                 'ventas.num_comprobante',
                 'ventas.fecha_hora',
                 'personas.nombre as cliente',
                 'ventas.total',
                 'users.usuario as vendedor',
-                'ventas.estado'
+                'ventas.estado',
+                'sucursales.nombre as sucursal_nombre'
             );
 
         // Filtros
         $filtros = [];
-
+        $sucursalNombre = '';
         if ($request->filled('sucursal') && $request->sucursal !== 'undefined') {
             $query->where('users.idsucursal', $request->sucursal);
-            $filtros[] = "Sucursal: {$request->sucursal}";
+            $sucursal = Sucursales::find($request->sucursal);
+            $sucursalNombre = $sucursal ? $sucursal->nombre : 'Desconocida';  // <-- Punto y coma agregado
+            $filtros[] = "Sucursal: {$sucursalNombre}";
         }
 
         if ($request->filled('tipoReporte')) {
@@ -359,15 +364,16 @@ class ReportesVentas extends Controller
         $pdf->SetFont('Arial', 'B', 14);
         $pdf->Cell(0, 10, utf8_decode('REPORTE GENERAL DE VENTAS'), 0, 1, 'C');
         $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 6, 'Fecha de generación: ' . date('d/m/Y H:i'), 0, 1, 'C');
+        $pdf->Cell(0, 6, utf8_decode('Fecha de generación: ' . date('d/m/Y H:i')), 0, 1, 'C');
 
         // Filtros usados
         if (count($filtros) > 0) {
             $pdf->Ln(2);
-            foreach ($filtros as $filtro) {
-                $pdf->SetFont('Arial', '', 9);
-                $pdf->Cell(0, 5, utf8_decode($filtro), 0, 1);
-            }
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->Cell(0, 5, utf8_decode('Filtros aplicados:'), 0, 1);
+            $pdf->SetFont('Arial', '', 9);
+            $filtrosTexto = implode(' | ', $filtros);
+            $pdf->Cell(0, 5, utf8_decode($filtrosTexto), 0, 1);
         }
 
         $pdf->Ln(5);
@@ -376,29 +382,41 @@ class ReportesVentas extends Controller
         $pdf->SetFillColor(0, 102, 204);
         $pdf->SetTextColor(255);
         $pdf->SetFont('Arial', 'B', 9);
-        $pdf->Cell(30, 8, 'Nro Comprobante', 1, 0, 'C', true);
-        $pdf->Cell(35, 8, 'Fecha y Hora', 1, 0, 'C', true);
-        $pdf->Cell(50, 8, 'Cliente', 1, 0, 'C', true);
-        $pdf->Cell(30, 8, 'Total Venta', 1, 0, 'C', true);
-        $pdf->Cell(30, 8, 'Vendedor', 1, 0, 'C', true);
-        $pdf->Cell(20, 8, 'Estado', 1, 1, 'C', true);
+        $pdf->Cell(30, 8, utf8_decode('Nro Comprobante'), 1, 0, 'C', true);
+        $pdf->Cell(35, 8, utf8_decode('Fecha y Hora'), 1, 0, 'C', true);
+        $pdf->Cell(50, 8, utf8_decode('Cliente'), 1, 0, 'C', true);
+        $pdf->Cell(30, 8, utf8_decode('Total Venta'), 1, 0, 'C', true);
+        $pdf->Cell(30, 8, utf8_decode('Vendedor'), 1, 0, 'C', true);
+        $pdf->Cell(20, 8, utf8_decode('Estado'), 1, 1, 'C', true);
 
-        // Detalles
+        $totalVentasRegistradas = 0;
         $pdf->SetFont('Arial', '', 9);
         $pdf->SetTextColor(0);
 
         foreach ($ventas as $venta) {
-            $pdf->Cell(30, 8, $venta->num_comprobante, 1);
-            $pdf->Cell(35, 8, date('d/m/Y H:i', strtotime($venta->fecha_hora)), 1);
+            if ($venta->estado != 1) {
+                $pdf->SetTextColor(255, 0, 0);
+            } else {
+                $pdf->SetTextColor(0);
+                $totalVentasRegistradas += $venta->total;
+            }
+
+            $pdf->Cell(30, 8, utf8_decode($venta->num_comprobante), 1);
+            $pdf->Cell(35, 8, utf8_decode(date('d/m/Y H:i', strtotime($venta->fecha_hora))), 1);
             $cliente = $venta->cliente ?? '-';
             $clienteRecortado = mb_strimwidth($cliente, 0, 30, '...');
             $pdf->Cell(50, 8, utf8_decode($clienteRecortado), 1);
-            $pdf->Cell(30, 8, number_format($venta->total, 2), 1, 0, 'R');
+            $pdf->Cell(30, 8, utf8_decode(number_format($venta->total, 2)), 1, 0, 'R');
             $vendedor = $venta->vendedor ?? '-';
             $vendedorRecortado = mb_strimwidth($vendedor, 0, 25, '...');
             $pdf->Cell(30, 8, utf8_decode($vendedorRecortado), 1, 0);
-            $pdf->Cell(20, 8, $venta->estado == 1 ? 'Registrado' : 'Anulado', 1, 1, 'C');
+            $pdf->Cell(20, 8, utf8_decode($venta->estado == 1 ? 'Registrado' : 'Anulado'), 1, 1, 'C');
+            $pdf->SetTextColor(0); // Restablecer color
         }
+
+        $pdf->Ln(5);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 8, utf8_decode('Total de ventas registradas: ' . number_format($totalVentasRegistradas, 2)), 0, 1, 'R');
 
         // Descargar
         $pdf->Output('D', 'reporte_general_ventas_' . date('Ymd_His') . '.pdf');
