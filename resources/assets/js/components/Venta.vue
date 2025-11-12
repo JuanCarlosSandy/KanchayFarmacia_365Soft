@@ -71,8 +71,8 @@
           </div>
         </div>
         <div>
-          <DataTable responsiveLayout="scroll" class="p-datatable-gridlines p-datatable-sm" :value="arrayVenta"
-            :rows="10">
+          <DataTable responsiveLayout="scroll" class="p-datatable-gridlines p-datatable-sm tabla-venta"
+            :value="arrayVenta" :rows="10">
             <Column header="Opciones">
               <template #body="slotProps">
                 <!-- Botón para ver venta -->
@@ -112,12 +112,9 @@
 
               </template>
             </Column>
-            <Column field="usuario" header="Vendedor"></Column>
-            <Column field="nombre_sucursal" header="Sucursal"></Column>
+            <Column field="num_comprobante" header="N° de Factura" class="d-none d-md-table-cell"></Column>
             <Column field="razonSocial" header="Cliente"></Column>
             <Column field="documentoid" header="Documento" class="d-none d-md-table-cell"></Column>
-            <Column field="num_comprobante" header="N° de Factura" class="d-none d-md-table-cell"></Column>
-            <Column field="fecha_hora" header="Fecha y Hora" class="d-none d-md-table-cell"></Column>
             <Column header="Total">
               <template #body="slotProps">
                 {{
@@ -126,6 +123,9 @@
                 {{ monedaVenta[1] }}
               </template>
             </Column>
+            <Column field="fecha_hora" header="Fecha y Hora" class="d-none d-md-table-cell"></Column>
+            <Column field="usuario" header="Vendedor"></Column>
+            <Column field="nombre_sucursal" header="Sucursal"></Column>
             <Column header="Estado" class="d-none d-md-table-cell">
               <template #body="slotProps">
                 <span :class="getEstadoClass(slotProps.data.estado, slotProps.data.idtipo_venta)">
@@ -168,7 +168,7 @@
           <!-- TABLA DE ARTÍCULOS -->
           <div class="detalle-tabla-pro">
             <DataTable :value="arrayDetalle" class="p-datatable-sm p-datatable-gridlines">
-              <Column field="articulo" header="Artículo"></Column>
+              <Column field="articulo" header="Producto"></Column>
 
               <Column header="Precio">
                 <template #body="slotProps">
@@ -250,8 +250,9 @@
                 <div style="width: 100%; padding-top: 0.5rem;">
                   <div class="p-mb-3" style="margin-bottom: 1.5rem; position: relative;">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
-                      <label style="font-weight: bold;">Documento <span class="p-error">*</span></label>
-                      <!-- 🔘 Botón que alterna CI / NIT -->
+                      <label for="nombre" class="label-input">
+                        Documento del Cliente <span class="text-required">*</span>
+                      </label> <!-- 🔘 Botón que alterna CI / NIT -->
                       <button type="button" class="btn btn-sm btn-outline-primary" @click="alternarTipoDocumento"
                         style="font-size: 0.8rem; padding: 2px 8px; border-radius: 6px;">
                         {{ tipoDocumentoTexto }}
@@ -260,12 +261,12 @@
 
                     <div class="input-con-desplegable">
                       <div class="p-inputgroup">
-                        <InputText ref="inputDocumentoCliente" id="documento" v-model="documento"
+                        <InputText ref="inputDocumentoCliente" id="documento" v-model="documento" class="input-full"
                           @input="buscarClientePorDocumento" @keydown.down="moverSeleccionCliente('abajo')"
                           @keydown.up="moverSeleccionCliente('arriba')"
                           @keydown.enter="seleccionarClienteConEnter($event)"
                           placeholder="Buscar cliente por documento o nombre" autocomplete="off"
-                          style="margin-top: 8px; height: 40px; font-size: 0.875rem; width: 100%;" />
+                          style="margin-top: 2px" />
                       </div>
 
                       <!-- 🔽 Desplegable de clientes -->
@@ -282,27 +283,30 @@
                   </div>
 
                   <div class="p-mb-3" style="margin-bottom: 1.5rem; position: relative;">
+                    <label for="nombre" class="label-input">
+                      Razon Social <span class="text-required">*</span>
+                    </label>
                     <span class="p-float-label">
-                      <InputText ref="inputNombreCliente" id="nombreCliente" v-model="nombreCliente"
+                      <InputText ref="inputNombreCliente" id="nombreCliente" v-model="nombreCliente" class="input-full"
                         :disabled="!nombreClienteEditable" @input="mensajeRazonSocial = false" autocomplete="off"
-                        style="margin-top: 8px; height: 40px; font-size: 0.875rem; width: 100%;" />
-                      <label for="nombreCliente" style="top: -8px; font-size: 0.875rem;">
-                        Cliente <span class="p-error">*</span>
-                      </label>
+                        style="margin-top: 2px" />
                     </span>
 
                     <!-- 🔹 Mensaje temporal en amarillo -->
                     <span v-if="nombreClienteEditable && nombreCliente.trim() === ''"
-                      style="color: #FFA500; font-size: 0.75rem; position: absolute; top: 60%; left: 12px; transform: translateY(-50%);">
+                      style="color: #FFA500; font-size: 0.75rem; position: absolute; top: 70%; left: 12px; transform: translateY(-50%);">
                       Ingrese la razón social del cliente
                     </span>
                   </div>
 
                   <div class="p-mb-3" style="margin-bottom: 1.5rem;">
+                    <label class="optional-field">
+                      <i class="pi pi-phone optional-icon"></i>
+                      Teléfono <span class="optional-tag">Opcional</span>
+                    </label>
                     <span class="p-float-label">
                       <InputText id="telefonoCliente" v-model="telefonoCliente" :disabled="!telefonoClienteEditable"
-                        style="margin-top: 8px; height: 40px; font-size: 0.875rem;" />
-                      <label for="telefonoCliente" style="top: -8px; font-size: 0.875rem;">Teléfono</label>
+                        class="input-full" style="margin-top: 2px" />
                     </span>
                   </div>
 
@@ -330,47 +334,46 @@
                     </div>
                   </div>
                   <div v-if="opcionPago === 'efectivo'" class="mt-2">
-                    <div class="card mb-2" style="font-size: 0.75rem;">
-                      <div class="card-body d-flex flex-column"> <!-- columna siempre -->
+                    <div class="card mb-2" style="font-size: 0.8rem;">
+                      <div class="card-body d-flex flex-column">
 
                         <!-- 🔹 Descuento al Total -->
                         <div class="form-group mb-3">
-                          <label for="descuentoTotal" class="font-weight-bold">
-                            <i class="fa fa-percent mr-2"></i> Descuento al Total:
+                          <label for="descuentoTotal" class="label-input">
+                            <i class="fa fa-percent mr-1"></i> Descuento al Total
                           </label>
-                          <div class="input-group">
+                          <div class="input-group input-group-sm custom-input-group">
                             <div class="input-group-prepend">
-                              <span class="input-group-text">%</span>
+                              <span class="input-group-text addon-small">%</span>
                             </div>
-                            <input type="number" class="form-control" id="descuentoTotal" v-model="descuentoAdicional"
-                              :disabled="!habilitacionpromocion" placeholder="Ingrese el % de descuento" min="0"
-                              max="100" />
+                            <input type="number" id="descuentoTotal" class="form-control input-uniforme"
+                              v-model="descuentoAdicional" :disabled="!habilitacionpromocion"
+                              placeholder="Ingrese el % de descuento" min="0" max="100" />
                           </div>
                         </div>
 
                         <!-- 🔹 Monto Recibido -->
                         <div class="form-group mb-3">
-                          <label for="montoEfectivo" class="font-weight-bold">
-                            <i class="fa fa-money mr-2"></i> Monto Recibido:
+                          <label for="montoEfectivo" class="label-input">
+                            <i class="fa fa-money mr-1"></i> Monto Recibido
                           </label>
-                          <div class="input-group">
+                          <div class="input-group input-group-sm custom-input-group">
                             <div class="input-group-prepend">
-                              <span class="input-group-text">{{ monedaVenta[1] }}</span>
+                              <span class="input-group-text addon-small">{{ monedaVenta[1] }}</span>
                             </div>
-                            <input type="number" class="form-control" id="montoEfectivo" v-model="recibido"
-                              placeholder="Ingrese el monto recibido" />
+                            <input type="number" id="montoEfectivo" class="form-control input-uniforme"
+                              v-model="recibido" placeholder="Ingrese el monto recibido" />
                           </div>
                         </div>
 
                         <!-- 🔹 Cambio a Entregar -->
                         <div class="form-group mb-0">
-                          <label for="cambioRecibir" class="font-weight-bold">
-                            <i class="fa fa-exchange mr-2"></i> Cambio a Entregar:
+                          <label for="cambioRecibir" class="label-input">
+                            <i class="fa fa-exchange mr-1"></i> Cambio a Entregar
                           </label>
-                          <input type="text" class="form-control bg-light" id="cambioRecibir"
+                          <input type="text" id="cambioRecibir" class="form-control input-cambio bg-light"
                             :value="recibido - calcularTotal * parseFloat(monedaVenta[0])" readonly />
                         </div>
-
                       </div>
                     </div>
 
@@ -459,18 +462,24 @@
           <div v-if="step === 1" class="step-content">
             <div class="p-fluid p-grid form-section">
               <div class="p-col-12 p-md-6">
-                <label class="input-label">Almacén <span class="p-error">*</span></label>
+                <label for="tipo_documento" class="label-input">
+                  Almacén de trabajo <span class="text-required">*</span>
+                </label>
                 <Dropdown v-model="selectedAlmacen" :options="arrayAlmacenes" optionLabel="nombre_almacen"
-                  optionValue="id" placeholder="Seleccione un almacén" @change="getAlmacenProductos" />
+                  optionValue="id" placeholder="Seleccione un almacén" @change="getAlmacenProductos"
+                  class="dropdown-full" />
               </div>
 
               <div class="p-col-12 p-md-6">
-                <label class="input-label">Buscar artículo</label>
+                <label for="nombre" class="label-input">
+                  Buscar Producto
+                </label>
                 <div class="input-con-desplegable">
                   <div class="p-inputgroup">
                     <InputText ref="inputCodigo" v-model="codigo" placeholder="Buscar por nombre, código o alfanumérico"
-                      :disabled="!selectedAlmacen" @input="buscarArticulo" @keydown.down="moverSeleccion('abajo')"
-                      @keydown.up="moverSeleccion('arriba')" @keydown.enter="seleccionarConEnter" />
+                      class="input-full" :disabled="!selectedAlmacen" @input="buscarArticulo"
+                      @keydown.down="moverSeleccion('abajo')" @keydown.up="moverSeleccion('arriba')"
+                      @keydown.enter="seleccionarConEnter" />
                     <Button icon="pi pi-search" :disabled="!selectedAlmacen" @click="abrirModal" />
                   </div>
 
@@ -478,7 +487,7 @@
                     <li v-for="(articulo, index) in resultadosBusqueda" :key="articulo.id"
                       @click="seleccionarArticulo(articulo)" :class="{ seleccionado: index === indiceSeleccionado }">
                       {{ articulo.nombre }} / {{ articulo.nombre_proveedor || 'N/A' }} / {{ articulo.precio_uno ||
-                      '0.00' }}
+                        '0.00' }}
                     </li>
                   </ul>
                 </div>
@@ -495,7 +504,7 @@
                     " />
                 </template>
               </Column>
-              <Column field="articulo" header="Artículo" style="width: 30%" />
+              <Column field="articulo" header="Producto" style="width: 30%" />
               <Column field="stock" header="Stock Actual" style="width: 15%">
                 <template #body="slotProps">
                   <div
@@ -546,11 +555,11 @@
             <div class="p-grid p-mt-3">
               <div class="p-col-12 p-md-8"></div>
               <div class="p-col-12 p-md-4" style="text-align: right;">
-                <h3>
+                <h5>
                   Total Neto:
                   {{ (calcularTotal * parseFloat(monedaVenta[0])).toFixed(2) }}
                   {{ monedaVenta[1] }}
-                </h3>
+                </h5>
               </div>
             </div>
           </div>
@@ -753,7 +762,7 @@
         :containerStyle="{ width: '480px', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }">
         <!-- 🔹 Encabezado personalizado -->
         <div
-          style="background: linear-gradient(135deg, #1976d2, #42a5f5); color: white; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+          style="background: linear-gradient(135deg, #1976d2, #42a5f5); color: white; padding: 1rem 1rem; display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <i class="pi pi-box" style="font-size: 1.4rem;"></i>
             <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
@@ -3722,6 +3731,178 @@ export default {
 </script>
 
 <style scoped>
+.tabla-venta {
+  width: 100%;
+  white-space: nowrap;
+  /* evita salto de columnas */
+  overflow-x: auto;
+}
+
+.tabla-venta .p-datatable-wrapper {
+  overflow-x: auto;
+}
+
+.tabla-venta th,
+.tabla-venta td {
+  text-align: center;
+  vertical-align: middle;
+  font-size: 0.85rem;
+  padding: 0.5rem;
+}
+
+/* 🔹 Estilo general uniforme para todos los inputs */
+.input-uniforme {
+  width: 50%;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  height: 30px;
+}
+
+.input-cambio {
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  height: 30px;
+}
+
+/* 🔹 Addon uniforme */
+.addon-small {
+  background-color: #f3f4f6;
+  font-size: 0.8rem;
+  color: #374151;
+  border-radius: 6px 0 0 6px;
+  padding: 6px 10px;
+}
+
+/* 🔹 Alinear grupos de inputs */
+.custom-input-group .form-control {
+  border-radius: 0 6px 6px 0;
+  font-size: 0.8rem;
+  height: 33px;
+}
+
+/* 🔹 Input deshabilitado o de solo lectura */
+.form-control[readonly],
+.form-control:disabled {
+  background-color: #f9fafb;
+  color: #6b7280;
+}
+
+/* Estilos para campos opcionales */
+.optional-field {
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.optional-icon {
+  color: #17a2b8;
+  font-size: 0.5rem;
+}
+
+.optional-tag {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-size: 0.7rem;
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  margin-left: 4px;
+}
+
+/* 🔹 Contenedor del input y el botón */
+.p-inputgroup {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+/* 🔹 Input principal (Buscar Producto) */
+.input-full {
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-radius: 6px 0 0 6px;
+  box-sizing: border-box;
+}
+
+/* Ajuste para InputText de PrimeVue */
+.input-full>>>.p-inputtext {
+  width: 100% !important;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-radius: 6px 0 0 6px;
+}
+
+/* 🔹 Botón de búsqueda */
+.p-inputgroup .p-button {
+  border-radius: 0 6px 6px 0;
+  font-size: 0.8rem;
+  padding: 6px 10px;
+}
+
+/* 🔹 Label obligatorio */
+.label-input {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.text-required {
+  color: #dc2626;
+  /* rojo */
+  font-weight: 700;
+}
+
+/* Estilo uniforme para Dropdown (igual que InputText) */
+.dropdown-full {
+  width: 100% !important;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+/* Input dentro del dropdown */
+.dropdown-full>>>.p-dropdown-label {
+  padding: 6px 8px !important;
+  font-size: 0.8rem;
+}
+
+/* Flecha del dropdown */
+.dropdown-full>>>.p-dropdown-trigger {
+  width: 2rem !important;
+}
+
+/* Borde al focus */
+.dropdown-full>>>.p-dropdown {
+  border: 1px solid #ccc;
+  transition: border 0.2s;
+}
+
+.dropdown-full>>>.p-dropdown.p-focus {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 0.15rem rgba(14, 165, 233, 0.25);
+}
+
+/* 🔹 Opciones del panel (lista desplegable) */
+.dropdown-full>>>.p-dropdown-panel .p-dropdown-item {
+  font-size: 0.8rem !important;
+  padding: 6px 10px !important;
+  min-height: auto !important;
+  /* evita que queden muy grandes */
+}
+
 .form-section {
   margin-bottom: 1rem;
 }
@@ -3873,26 +4054,34 @@ export default {
   top: 100%;
   left: 0;
   right: 0;
-  max-height: 200px;
+  max-height: 180px;
+  /* ligeramente más compacto */
   overflow-y: auto;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  /* color gris suave como otros inputs */
+  border-radius: 6px;
+  /* mismo borde que inputs */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 2px 0 0 0;
+  font-size: 0.8rem;
+  /* tamaño uniforme */
 }
 
 .desplegable-simple li {
-  padding: 8px 12px;
+  padding: 6px 8px;
+  /* igual que los inputs */
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .desplegable-simple li:hover,
 .desplegable-simple li.seleccionado {
-  background-color: #f0f0f0;
+  background-color: #f1f5f9;
+  /* color azul muy claro, uniforme con info-box */
 }
 
 /* Panel Content Spacing */
@@ -3954,16 +4143,16 @@ export default {
 
 .responsive-dialog>>>.p-dialog-content {
   overflow-x: auto;
-  padding: 1rem;
+  padding: 0.8rem;
 }
 
 .responsive-dialog>>>.p-dialog-header {
-  padding: 1rem 1.5rem;
+  padding: 1rem 0.75rem;
   font-size: 1.1rem;
 }
 
 .responsive-dialog>>>.p-dialog-footer {
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem;
   gap: 0.5rem;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -4008,8 +4197,8 @@ export default {
 }
 
 >>>.p-datatable .p-datatable-thead>tr>th {
-  padding: 0.75rem 0.5rem;
-  font-size: 0.85rem;
+  padding: 0.35rem 0.4rem;
+  font-size: 0.75rem;
 }
 
 /* Inputs compactos en la tabla de detalles */
@@ -4349,7 +4538,7 @@ export default {
   align-items: center;
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
-  padding: 1rem 1.5rem;
+  padding: 0.5rem 0rem;
   margin: 0;
   box-sizing: border-box;
   border-top-left-radius: 10px;
