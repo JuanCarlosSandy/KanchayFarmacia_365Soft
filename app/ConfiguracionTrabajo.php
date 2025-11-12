@@ -34,6 +34,10 @@ class ConfiguracionTrabajo extends Model
         'buscarClientePorCodigo',
         'idMonedaComra',
         'idMonedaVenta',
-        'idMonedaPrincipal'
+        'idMonedaPrincipal',
+        'permitir_descuento',
+        'permitir_ofertas',
+        'permitir_bonificacion',
+        'permitir_cambioprecio'
     ];
 }

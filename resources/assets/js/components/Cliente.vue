@@ -7,7 +7,7 @@
       </div>
     </div>
     <Toast :breakpoints="{ '920px': { width: '100%', right: '0', left: '0' } }" style="padding-top: 10px;"
-      appendTo="body" :baseZIndex="99999"></Toast>
+      appendTo="body" :baseZIndex="99999" />
     <Panel :toggleable="false" class="cliente-panel">
       <template #header>
         <div class="panel-header">
@@ -37,15 +37,8 @@
         </div>
       </div>
 
-      <DataTable :value="arrayPersona" class="p-datatable-gridlines p-datatable-sm" :paginator="true" :rows="8"
-        :rowsPerPageOptions="[8, 16, 24]" responsiveLayout="scroll">
-        <Column header="Acciones" style="width: 100px;">
-          <template #body="slotProps">
-            <Button icon="pi pi-pencil" class="p-button-warning p-button-sm"
-              style="padding: 0.3rem 0.4rem; font-size: 0.75rem; width: auto; min-width: unset;"
-              @click="abrirModal('persona', 'actualizar', slotProps.data)" />
-          </template>
-        </Column>
+      <DataTable :value="arrayPersona" class="p-datatable-gridlines p-datatable-sm" :paginator="true" :rows="11"
+        responsiveLayout="scroll">
         <Column field="nombre" header="Nombres" class="d-none d-md-table-cell"></Column>
         <Column header="Documento de Identidad" class="d-none d-md-table-cell">
           <template #body="slotProps">
@@ -63,87 +56,94 @@
             </span>
           </template>
         </Column>
+        <Column header="Acciones" style="width: 100px;">
+          <template #body="slotProps">
+            <Button icon="pi pi-pencil" class="p-button-warning p-button-sm btn-mini"
+              @click="abrirModal('persona', 'actualizar', slotProps.data)" />
+          </template>
+        </Column>
       </DataTable>
     </Panel>
 
-    <Dialog :visible.sync="modal" :containerStyle="dialogContainerStyle" :modal="true" class="responsive-dialog">
+    <!-- Dialog Cliente -->
+    <Dialog :visible.sync="modal" :modal="true" :closable="false" :containerStyle="dialogContainerStyle">
+      <!-- Header personalizado -->
       <template #header>
-        <h3>{{ tituloModal }}</h3>
+        <div class="dialog-header">
+          <i class="pi pi-user header-icon"></i>
+          <span class="header-title">{{ tituloModal }}</span>
+        </div>
       </template>
 
-      <form @submit.prevent="enviarFormulario">
-        <div class="p-fluid form-compact">
-          <div class="p-field input-container">
-            <label for="nombre" class="required-field">
-              <span class="required-icon">*</span>
-              Nombre del cliente
-            </label>
-            <InputText id="nombre" v-model="datosFormulario.nombre" :class="{ 'p-invalid': errores.nombre }"
-              @input="validarCampo('nombre')" required autofocus />
-            <small class="p-error error-message" v-if="errores.nombre">
-              <strong>{{ errores.nombre }}</strong>
-            </small>
+      <!-- Formulario -->
+      <form @submit.prevent="enviarFormulario" class="p-fluid form-compact">
+        <!-- Nombre del cliente -->
+        <div class="p-field input-container">
+          <label for="nombre" class="label-input">
+            Nombre del Cliente <span class="text-required">*</span>
+          </label>
+          <InputText id="nombre" v-model="datosFormulario.nombre" placeholder="Ingrese el nombre del cliente"
+            autocomplete="off" class="input-full" :class="{ 'p-invalid': errores.nombre }"
+            @input="validarCampo('nombre')" required autofocus />
+          <small v-if="errores.nombre" class="text-error">{{ errores.nombre }}</small>
+        </div>
+
+        <!-- Tipo de documento -->
+        <div class="p-field input-container">
+          <label for="tipo_documento" class="label-input">
+            Tipo de Documento <span class="text-required">*</span>
+          </label>
+          <Dropdown id="tipo_documento" v-model="datosFormulario.tipo_documento" :options="tipoDocumentoOptions"
+            optionLabel="label" optionValue="value" placeholder="Selecciona un tipo de documento" class="dropdown-full"
+            :class="{ 'p-invalid': errores.tipo_documento }" @change="validarCampo('tipo_documento')" />
+          <small v-if="errores.tipo_documento" class="text-error">{{ errores.tipo_documento }}</small>
+        </div>
+
+        <!-- Número de documento -->
+        <div class="p-field input-container">
+          <label class="label-input">
+            N° {{ getTipoDocumentoLabel() }} <span class="text-required">*</span>
+          </label>
+          <InputText v-model="datosFormulario.num_documento" :class="{ 'p-invalid': errores.num_documento }"
+            placeholder="Ingrese el número" class="input-full" @input="validarCampo('num_documento')"
+            autocomplete="off" />
+          <small v-if="errores.num_documento" class="text-error">{{ errores.num_documento }}</small>
+        </div>
+
+        <!-- Complemento (opcional) -->
+        <div class="p-field input-container">
+          <label class="optional-field">
+            <i class="pi pi-info-circle optional-icon"></i>
+            Complemento <span class="optional-tag">Opcional</span>
+          </label>
+          <div class="p-inputgroup">
+            <InputText id="complemento" v-model="datosFormulario.complemento" :disabled="!mostrarComplemento"
+              placeholder="Ej. A o B" class="input-full" autocomplete="off" />
+            <Button icon="pi pi-check" class="btn-sm btn-mini" @click="mostrarComplemento = !mostrarComplemento"
+              type="button" />
           </div>
+        </div>
 
-          <div class="p-field input-container">
-            <label for="tipo_documento" class="required-field">
-              <span class="required-icon">*</span>
-              Tipo de documento
-            </label>
-            <Dropdown id="tipo_documento" v-model="datosFormulario.tipo_documento" :options="tipoDocumentoOptions"
-              optionLabel="label" optionValue="value" placeholder="Selecciona un tipo de documento"
-              :class="{ 'p-invalid': errores.tipo_documento }" @change="validarCampo('tipo_documento')" />
-            <small class="p-error error-message" v-if="errores.tipo_documento">
-              <strong>{{ errores.tipo_documento }}</strong>
-            </small>
-          </div>
-
-          <div class="p-field input-container">
-            <label :for="'num_documento_' + datosFormulario.tipo_documento" class="required-field">
-              <span class="required-icon">*</span>
-              N° {{ getTipoDocumentoLabel() }}
-            </label>
-            <InputText :id="'num_documento_' + datosFormulario.tipo_documento" v-model="datosFormulario.num_documento"
-              :class="{ 'p-invalid': errores.num_documento }" @input="validarCampo('num_documento')" />
-            <small class="p-error error-message" v-if="errores.num_documento">
-              <strong>{{ errores.num_documento }}</strong>
-            </small>
-          </div>
-
-          <div class="p-field input-container">
-            <label for="complemento" class="optional-field">
-              <i class="pi pi-info-circle optional-icon"></i>
-              Complemento
-              <span class="p-tag p-tag-secondary">Opcional</span>
-            </label>
-            <div class="p-inputgroup">
-              <InputText id="complemento" v-model="datosFormulario.complemento" :disabled="!mostrarComplemento" />
-              <Button icon="pi pi-check" @click="mostrarComplemento = !mostrarComplemento" />
-            </div>
-          </div>
-
-          <div class="p-field input-container">
-            <label for="complemento" class="optional-field">
-              <i class="pi pi-info-circle optional-icon"></i>
-              Teléfono
-              <span class="p-tag p-tag-secondary">Opcional</span>
-            </label>
-            <div class="p-inputgroup">
-              <InputText id="telefono" v-model="datosFormulario.telefono" />
-            </div>
-          </div>
-
-
+        <!-- Teléfono (opcional) -->
+        <div class="p-field input-container">
+          <label class="optional-field">
+            <i class="pi pi-phone optional-icon"></i>
+            Teléfono <span class="optional-tag">Opcional</span>
+          </label>
+          <InputText id="telefono" v-model="datosFormulario.telefono" class="input-full" placeholder="Ej. 70000000"
+            autocomplete="off" />
         </div>
       </form>
 
+      <!-- Footer -->
       <template #footer>
-        <Button label="Cancelar" icon="pi pi-times" class="p-button-danger p-button-sm modal-button"
-          @click="cerrarModal" />
-        <Button v-if="tipoAccion == 1" label="Guardar" icon="pi pi-check"
-          class="p-button-success p-button-sm modal-button" @click="enviarFormulario" />
-        <Button v-if="tipoAccion == 2" label="Actualizar" icon="pi pi-check"
-          class="p-button-warning p-button-sm modal-button" @click="enviarFormulario" />
+        <div class="d-flex gap-2 justify-content-end modal-footer-buttons">
+          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger btn-sm" @click="cerrarModal" type="button" />
+          <Button v-if="tipoAccion == 1" label="Guardar" icon="pi pi-check" class="p-button-success btn-sm"
+            @click="enviarFormulario" type="button" />
+          <Button v-if="tipoAccion == 2" label="Actualizar" icon="pi pi-refresh" class="p-button-warning btn-sm"
+            @click="enviarFormulario" type="button" />
+        </div>
       </template>
     </Dialog>
 
@@ -151,87 +151,84 @@
       <ImportarExcelCliente @cerrar="cerrarModalImportar"></ImportarExcelCliente>
     </Dialog>
 
-    <Dialog header="Configuración de Monto Bonificación" :visible.sync="dialogMontoCliente" :modal="true"
-      :closable="false" :containerStyle="{ width: '500px', borderRadius: '12px', overflow: 'hidden' }">
+    <!-- Dialog Configuración de Monto Bonificación -->
+    <Dialog :visible.sync="dialogMontoCliente" :modal="true" :closable="false"
+      :containerStyle="{ width: '480px', borderRadius: '10px', overflow: 'hidden' }">
 
-      <div class="p-fluid p-3" style="background-color: #f9fafb; border-radius: 8px;">
-        <!-- Encabezado descriptivo -->
-        <div class="p-text-center mb-3">
-          <p style="font-size: 14px; color: #6b7280;">
-            Define el monto mínimo de compras y si será acumulativo.
-          </p>
+      <!-- Header personalizado -->
+      <template #header>
+        <div class="dialog-header">
+          <i class="pi pi-cog header-icon"></i>
+          <span class="header-title">Configuración de Monto Bonificación</span>
         </div>
+      </template>
+
+      <!-- Contenido -->
+      <div class="p-fluid form-compact">
+        <p class="dialog-subtext">
+          Define el monto mínimo de compras y si será acumulativo.
+        </p>
 
         <!-- Campo Monto -->
-        <div class="p-field mb-3">
-          <label for="monto" style="font-weight: 600; color: #374151;">Monto mínimo de compras</label>
-          <div class="p-inputgroup">
-            <span class="p-inputgroup-addon" style="background-color: #f3f4f6;">Bs</span>
-            <InputNumber id="monto" v-model="montoCliente.monto" mode="currency" currency="BOB" locale="es-BO" :min="0"
-              :maxFractionDigits="2" style="width: 100%;" />
-          </div>
+        <div class="p-field">
+          <label class="label-input">
+            Monto mínimo de compras <span class="text-required">*</span>
+          </label>
+          <InputNumber v-model="montoCliente.monto" mode="currency" currency="BOB" locale="es-BO" :min="0"
+            :maxFractionDigits="2" class="input-number-full" />
         </div>
 
         <!-- Fecha de actualización -->
-        <div class="p-field mb-3">
-          <label style="font-weight: 600; color: #374151;">Última fecha de actualización</label>
-          <InputText v-model="montoCliente.fecha_actualizacion" disabled
-            style="background-color: #f3f4f6; border: none; color: #6b7280; font-size: 14px;" />
+        <div class="p-field">
+          <label class="label-input">Última fecha de actualización</label>
+          <InputText v-model="montoCliente.fecha_actualizacion" disabled class="input-full-disabled" />
         </div>
 
         <!-- Switch acumulativo -->
-        <div class="p-field mb-3" style="display: flex; align-items: center; gap: 10px;">
+        <div class="p-field flex-field">
           <InputSwitch v-model="montoCliente.es_acumulativo" />
-          <label style="font-weight: 600; color: #374151;">¿Periodo de Tiempo?</label>
+          <label class="label-input">¿Periodo de Tiempo?</label>
         </div>
 
         <!-- Información adicional -->
-        <div v-if="montoCliente.es_acumulativo" class="p-mt-3"
-          style="background-color: #e0f2fe; padding: 10px; border-radius: 8px; border-left: 4px solid #0284c7;">
+        <transition name="fade">
+          <div v-if="montoCliente.es_acumulativo" class="info-box info-blue">
+            <small>
+              💡 Cuando el monto tiene <strong>periodo acumulativo</strong>, al finalizar el periodo desde la última
+              fecha
+              actualizada, los montos acumulados se reiniciarán.
+            </small>
 
-          <small style="color: #0369a1; display: block; font-size: 0.9rem;">
-            💡 Cuando el monto tiene <strong>periodo acumulativo</strong>, al finalizar el periodo de tiempo desde la
-            última
-            fecha que se ha actualizado,
-            los montos acumulados se reiniciarán.
-          </small>
-
-          <!-- 🔽 NUEVO CAMPO: fecha de inicio -->
-          <div class="p-field mt-3">
-            <label for="fechaInicio" style="font-weight: 600; color: #0369a1;">Fecha de inicio del periodo</label>
-            <input type="date" id="fechaInicio" v-model="montoCliente.fecha_inicio"
-              style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #f3f4f6;" />
-          </div>
-
-          <!-- 🔽 NUEVO CAMPO: número de meses -->
-          <div class="p-field mt-3">
-            <label for="periodoMeses" style="font-weight: 600; color: #0369a1;">Periodo de acumulación (en
-              meses)</label>
-            <div class="p-inputgroup">
-              <InputNumber id="periodoMeses" v-model="montoCliente.periodo_meses" :min="1" :maxFractionDigits="0"
-                placeholder="Ej. 3" style="width: 100%;" />
-              <span class="p-inputgroup-addon" style="background-color: #e0f2fe;">meses</span>
+            <div class="p-field mt-2">
+              <label class="label-input-blue">Fecha de inicio del periodo</label>
+              <input type="date" v-model="montoCliente.fecha_inicio" class="input-full-date" />
             </div>
-            <small style="color: #0369a1;">Indica cada cuántos meses se acumularán las compras.</small>
-          </div>
-        </div>
 
-        <div v-else class="p-mt-3"
-          style="background-color: #fee2e2; padding: 10px; border-radius: 8px; border-left: 4px solid #dc2626;">
-          <small style="color: #991b1b; display: block; font-size: 0.9rem;">
-            ⚠️ Cuando el monto <strong>no tiene periodo de acumulación</strong>, los clientes cuando lleguen al monto
-            minimo, sus compras seguran acumulandose.
-          </small>
-        </div>
+            <div class="p-field mt-2">
+              <label class="label-input-blue">Periodo de acumulación (en meses)</label>
+              <InputNumber v-model="montoCliente.periodo_meses" :min="1" :maxFractionDigits="0" placeholder="Ej. 3"
+                class="input-number-full" />
+              <small class="small-info">Indica cada cuántos meses se acumularán las compras.</small>
+            </div>
+          </div>
+
+          <div v-else class="info-box info-red">
+            <small>
+              ⚠️ Cuando el monto <strong>no tiene periodo de acumulación</strong>, los clientes seguirán acumulando
+              compras
+              incluso después de alcanzar el monto mínimo.
+            </small>
+          </div>
+        </transition>
       </div>
 
       <!-- Footer -->
       <template #footer>
-        <div class="p-d-flex p-jc-end p-ai-center" style="gap: 8px;">
-          <Button label="Cancelar" icon="pi pi-times" class="p-button-text p-button-sm" style="color: #6b7280;"
-            @click="dialogMontoCliente = false" />
-          <Button label="Guardar cambios" icon="pi pi-check" class="p-button-success p-button-sm"
-            style="border-radius: 6px;" @click="guardarMontoCliente" />
+        <div class="d-flex gap-2 justify-content-end modal-footer-buttons">
+          <Button label="Cancelar" icon="pi pi-times" class="p-button-danger btn-sm" @click="dialogMontoCliente = false"
+            type="button" />
+          <Button label="Guardar" icon="pi pi-check" class="p-button-success btn-sm" @click="guardarMontoCliente"
+            type="button" />
         </div>
       </template>
     </Dialog>
@@ -342,13 +339,17 @@ export default {
   computed: {
     dialogContainerStyle() {
       if (window.innerWidth <= 480) {
-        return { width: "95vw", maxWidth: "95vw", margin: "0 auto" };
+        // Móviles pequeños
+        return { width: "95vw", maxWidth: "380px", margin: "0 auto" };
       } else if (window.innerWidth <= 768) {
-        return { width: "90vw", maxWidth: "90vw", margin: "0 auto" };
+        // Tablets
+        return { width: "85vw", maxWidth: "500px", margin: "0 auto" };
       } else if (window.innerWidth <= 1024) {
-        return { width: "85vw", maxWidth: "900px", margin: "0 auto" };
+        // Pantallas medianas
+        return { width: "70vw", maxWidth: "600px", margin: "0 auto" };
       } else {
-        return { width: "800px", maxWidth: "90vw", margin: "0 auto" };
+        // Escritorios
+        return { width: "450px", maxWidth: "90vw", margin: "0 auto" };
       }
     },
   },
@@ -408,7 +409,7 @@ export default {
       if (data.telefono) {
         return { existe: true, texto: data.telefono };
       }
-      return { existe: false, texto: "Teléfono no registrado" };
+      return { existe: false, texto: "No registrado" };
     },
     toastSuccess(mensaje) {
       this.$toasted.show(
@@ -463,6 +464,8 @@ export default {
           return "CEX";
         case "3":
           return "Pas"; // Abreviatura de Pasaporte
+        case "4":
+          return "OD";
         case "5":
           return "NIT";
         default:
@@ -576,11 +579,11 @@ export default {
         await axios.post("/cliente/registrar", datos);
         this.cerrarModal();
         await this.listarPersona(this.buscar, this.criterio);
-        Swal.fire({
-          title: 'Éxito',
-          text: 'Cliente registrado correctamente',
-          icon: 'success',
-          confirmButtonText: 'OK'
+        this.$toast.add({
+          severity: "success",
+          summary: "Cliente Registrado",
+          detail: "El registro fue exitoso",
+          life: 2500,
         });
       } catch (error) {
         this.toastError("No se pudo registrar el cliente");
@@ -594,13 +597,19 @@ export default {
         await axios.put("/cliente/actualizar", datos);
         this.cerrarModal();
         await this.listarPersona(this.buscar, this.criterio);
-        Swal.fire({
-          title: 'ACTUALIZACIÓN EXITOSA',
-          icon: 'success',
-          confirmButtonText: 'OK'
+        this.$toast.add({
+          severity: "success",
+          summary: "Cliente Actualizado",
+          detail: "Actualizacion exitosa",
+          life: 2500,
         });
       } catch (error) {
-        this.toastError("No se pudo actualizar el cliente");
+        this.$toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: "No se pudo actualizar",
+          life: 3000,
+        });
       } finally {
         this.isLoading = false; // Desactivar loading
       }
@@ -765,19 +774,315 @@ export default {
   },
 };
 </script>
+
 <style scoped>
+/*estilos extras de bonificacion*/
+.dialog-subtext {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.label-input-blue {
+  font-weight: 600;
+  color: #0369a1;
+  font-size: 0.8rem;
+}
+
+.label-addon {
+  background-color: #f3f4f6;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.label-addon-blue {
+  background-color: #e0f2fe;
+  font-size: 0.8rem;
+  color: #0369a1;
+}
+
+.info-box {
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.info-blue {
+  background-color: #e0f2fe;
+  border-left: 4px solid #0284c7;
+  color: #0369a1;
+}
+
+.info-red {
+  background-color: #fee2e2;
+  border-left: 4px solid #dc2626;
+  color: #991b1b;
+}
+
+.small-info {
+  display: block;
+  color: #0369a1;
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+.flex-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Transición suave para el bloque de información */
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.25s ease;
+}
+
+.fade-enter,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+/* Estilo uniforme para Dropdown (igual que InputText) */
+.dropdown-full {
+  width: 100% !important;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+/* Input dentro del dropdown */
+.dropdown-full>>>.p-dropdown-label {
+  padding: 6px 8px !important;
+  font-size: 0.8rem;
+}
+
+/* Flecha del dropdown */
+.dropdown-full>>>.p-dropdown-trigger {
+  width: 2rem !important;
+}
+
+/* Borde al focus */
+.dropdown-full>>>.p-dropdown {
+  border: 1px solid #ccc;
+  transition: border 0.2s;
+}
+
+.dropdown-full>>>.p-dropdown.p-focus {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 0.15rem rgba(14, 165, 233, 0.25);
+}
+
+/* 🔹 Opciones del panel (lista desplegable) */
+.dropdown-full>>>.p-dropdown-panel .p-dropdown-item {
+  font-size: 0.8rem !important;
+  padding: 6px 10px !important;
+  min-height: auto !important;
+  /* evita que queden muy grandes */
+}
+
+/* 🔹 Estilo más pequeño para todos los Toasts */
+.p-toast {
+  width: 300px !important;
+  /* más angosto */
+  font-size: 0.75rem !important;
+  /* texto más pequeño */
+}
+
+.p-toast-message {
+  padding: 0.6rem 0.8rem !important;
+  /* menos espacio interno */
+  border-radius: 6px !important;
+}
+
+.p-toast-message-content {
+  gap: 0.4rem !important;
+  /* reduce separación entre ícono y texto */
+}
+
+.p-toast-message-text {
+  line-height: 1.2;
+}
+
+.p-toast-summary {
+  font-weight: 600;
+  font-size: 0.85rem !important;
+}
+
+.p-toast-detail {
+  font-size: 0.8rem !important;
+  opacity: 0.9;
+}
+
+/* 🔹 Ícono más pequeño */
+.p-toast-icon {
+  font-size: 1rem !important;
+}
+
+/* 🔹 Márgenes y posición */
+.p-toast-top-right {
+  top: 1rem !important;
+  right: 1rem !important;
+}
+
+/* 🔹 Header personalizado */
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.header-icon {
+  font-size: 1rem;
+  color: #2563eb;
+  /* azul elegante */
+}
+
+.header-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+  /* gris oscuro */
+  letter-spacing: 0.3px;
+}
+
+/* 🔹 Botones pequeños */
+.btn-sm {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  line-height: 1.1;
+}
+
+.btn-sm .pi {
+  font-size: 0.75rem;
+  margin-right: 4px;
+}
+
+.modal-footer-buttons {
+  margin-top: 10px;
+  padding-top: 0.5rem;
+}
+
+/* 🔹 Label obligatorio */
+.label-input {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.text-required {
+  color: #dc2626;
+  /* rojo */
+  font-weight: 700;
+}
+
+/* Estilos para campos opcionales */
+.optional-field {
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.optional-icon {
+  color: #17a2b8;
+  font-size: 0.5rem;
+}
+
+.optional-tag {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-size: 0.7rem;
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  margin-left: 4px;
+}
+
+.input-full {
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.input-full:focus {
+  border-color: #3b82f6;
+  /* azul elegante al enfocar */
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* 🔹 Estilo especial para InputNumber */
+.input-number-full {
+  width: 100%;
+}
+
+.input-number-full>>>.p-inputtext {
+  width: 100% !important;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.input-full-date {
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.input-full-disabled {
+  width: 100%;
+  font-size: 0.8rem;
+  color: #6b7280;
+  background-color: #f3f4f6;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  box-sizing: border-box;
+  padding: 6px 8px;
+}
+
+/* 🔹 Error */
+.div-error {
+  margin-top: 0.5rem;
+}
+
+.text-error {
+  color: #dc2626;
+  font-size: 0.8rem;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 6px 10px;
+  line-height: 1.2;
+}
+
+.text-error div+div {
+  margin-top: 2px;
+}
+
 .input-container {
   position: relative;
-  padding-bottom: 20px;
-  /* Aumentado de 8px a 12px para dar espacio al error */
+  padding-bottom: 10px;
   margin-bottom: 8px;
-  /* Agregado margen inferior pequeño */
 }
 
 .input-container .p-inputtext {
   width: 100%;
   margin-bottom: 0;
-  /* Eliminar margen inferior si existe */
 }
 
 .error-message {
@@ -958,18 +1263,18 @@ export default {
 
 /* DataTable Responsive */
 >>>.p-datatable {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 >>>.p-datatable .p-datatable-tbody>tr>td {
-  padding: 0.5rem;
+  padding: 0.4rem;
   word-break: break-word;
   text-align: left;
 }
 
 >>>.p-datatable .p-datatable-thead>tr>th {
-  padding: 0.75rem 0.5rem;
-  font-size: 0.85rem;
+  padding: 0.35rem 0.4rem;
+  font-size: 0.78rem;
 }
 
 .p-dialog-mask {
@@ -1080,7 +1385,7 @@ export default {
 
   /* Reducir espacios entre campos en móviles */
   .input-container {
-    padding-bottom: 20px;
+    padding-bottom: 10px;
     /* Aumentado para dar espacio al error en móviles */
     margin-bottom: 6px;
   }
@@ -1189,7 +1494,7 @@ export default {
 
   /* Espacios aún más compactos en móviles extra pequeños */
   .input-container {
-    padding-bottom: 20px;
+    padding-bottom: 10px;
     /* Aumentado para dar espacio al error en móviles pequeños */
     margin-bottom: 4px;
   }
@@ -1351,7 +1656,7 @@ export default {
 }
 
 >>>.p-dialog .p-dialog-content {
-  padding: 0 1.5rem 1.5rem 1.5rem;
+  padding: 0 1.5rem 0rem 1.5rem;
 }
 
 /* Estilos del loader */

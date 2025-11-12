@@ -118,7 +118,6 @@ class ConfiguracionTrabajoController extends Controller
             $configuracionTrabajo->idMonedaVenta = $request->idMonedaVenta;
             $configuracionTrabajo->idMonedaPrincipal = $request->idMonedaPrincipal;
             Log::info($configuracionTrabajo);
-
             $configuracionTrabajo->gestion = $request->selectedYear;
             $configuracionTrabajo->almacenPredeterminado = $request->almacenPredeterminado;
             $configuracionTrabajo->codigoProductos = $request->codigoProducto;
@@ -136,6 +135,10 @@ class ConfiguracionTrabajoController extends Controller
             $configuracionTrabajo->editarNroDoc = $request->editarNroDoc;
             $configuracionTrabajo->registroClienteObligatorio = $request->registroClienteObligatorio;
             $configuracionTrabajo->buscarClientePorCodigo = $request->buscarClientePorCodigo;
+            $configuracionTrabajo->permitir_bonificacion = $request->habilitarBonificacion;
+            $configuracionTrabajo->permitir_descuento = $request->habilitarDescuentos;
+            $configuracionTrabajo->permitir_ofertas = $request->habilitarOfertas;
+            $configuracionTrabajo->permitir_cambioprecio = $request->habilitarcambioprecio;
 
             $configuracionTrabajo->save();
             DB::commit();

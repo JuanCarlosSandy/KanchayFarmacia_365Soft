@@ -6,7 +6,8 @@
         <div class="loading-text">LOADING...</div>
       </div>
     </div>
-
+    <Toast :breakpoints="{ '920px': { width: '100%', right: '0', left: '0' } }" style="padding-top: 10px;"
+      appendTo="body" :baseZIndex="99999" />
     <Panel>
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -71,125 +72,202 @@
           </template>
         </Column>
       </DataTable>
-      <Paginator :rows="10" :totalRecords="pagination.total" :first="(pagination.current_page - 1) * 10"
+      <Paginator :rows="6" :totalRecords="pagination.total" :first="(pagination.current_page - 1) * 6"
         @page="onPageChange" />
     </Panel>
 
-    <!-- Dialog Apertura Caja -->
-    <Dialog :visible.sync="modal" :modal="true" :closable="true" :header="tituloModal"
-      :containerStyle="{ width: '400px' }">
+    <Dialog :visible.sync="modal" :modal="true" :closable="false"
+      :containerStyle="{ width: '400px', borderRadius: '10px' }">
+      <!-- Header personalizado -->
+      <template #header>
+        <div class="dialog-header">
+          <i class="pi pi-wallet header-icon"></i>
+          <span class="header-title">{{ tituloModal }}</span>
+        </div>
+      </template>
+
+      <!-- Contenido -->
       <form @submit.prevent="registrarCaja">
         <div class="p-field">
-          <label>Saldo Inicial</label>
-          <InputText v-model="saldoInicial" placeholder="0.00" />
+          <label class="label-input">Saldo Inicial</label>
+          <InputText v-model="saldoInicial" placeholder="0.00" class="input-full" />
         </div>
+
         <div v-show="errorCaja" class="div-error">
           <div class="text-error">
-            <div v-for="error in errorMostrarMsjCaja" :key="error">
-              {{ error }}
-            </div>
+            <div v-for="error in errorMostrarMsjCaja" :key="error">{{ error }}</div>
           </div>
         </div>
+
         <div class="d-flex gap-2 justify-content-end modal-footer-buttons">
-          <Button v-if="tipoAccion == 1" label="Guardar" icon="pi pi-check" class="p-button-success p-button-sm"
+          <Button v-if="tipoAccion == 1" label="Guardar" icon="pi pi-check" class="p-button-success btn-sm"
             type="submit" />
-          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger p-button-sm" @click="cerrarModal()"
+          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger btn-sm" @click="cerrarModal()"
             type="button" />
         </div>
       </form>
     </Dialog>
 
+
     <!-- Dialog Depósitos -->
-    <Dialog :visible.sync="modal2" :modal="true" :closable="true" :header="tituloModal2"
-      :containerStyle="{ width: '400px' }">
-      <form class="p-fluid">
-        <div class="p-field">
-          <label>Importe</label>
-          <InputText v-model="depositos" placeholder="0.00" />
+    <Dialog :visible.sync="modal2" :modal="true" :closable="false"
+      :containerStyle="{ width: '400px', borderRadius: '10px' }">
+      <!-- Header personalizado -->
+      <template #header>
+        <div class="dialog-header">
+          <i class="pi pi-dollar header-icon"></i>
+          <span class="header-title">{{ tituloModal2 }}</span>
         </div>
+      </template>
+
+      <!-- Contenido -->
+      <form @submit.prevent="depositar" class="p-fluid">
+        <!-- Importe (obligatorio) -->
         <div class="p-field">
-          <label>Descripcion de Importe</label>
-          <InputText v-model="Desdepositos" placeholder="Descripcion" />
+          <label class="label-input">
+            Importe <span class="text-required">*</span>
+          </label>
+          <InputText v-model="depositos" placeholder="0.00" class="input-full" />
         </div>
+
+        <!-- Descripción (opcional) -->
+        <div class="p-field">
+          <label for="descripcion" class="optional-field">
+            <i class="pi pi-info-circle optional-icon"></i>
+            Descripción
+          </label>
+          <InputText v-model="Desdepositos" placeholder="Escribe una descripción" class="input-full" />
+        </div>
+
+        <!-- Errores -->
         <div v-show="errorCaja" class="div-error">
           <div class="text-error">
-            <div v-for="error in errorMostrarMsjCaja" :key="error">
-              {{ error }}
-            </div>
+            <div v-for="error in errorMostrarMsjCaja" :key="error">{{ error }}</div>
           </div>
         </div>
       </form>
+
+      <!-- Footer -->
       <template #footer>
         <div class="d-flex gap-2 justify-content-end modal-footer-buttons">
-          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger p-button-sm" @click="cerrarModal2()"
+          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger btn-sm" @click="cerrarModal2()"
             type="button" />
-          <Button v-if="tipoAccion == 2" label="Depositar" icon="pi pi-arrow-right" class="p-button-success p-button-sm"
+          <Button v-if="tipoAccion == 2" label="Depositar" icon="pi pi-arrow-right" class="p-button-success btn-sm"
             @click="depositar()" type="button" />
         </div>
       </template>
     </Dialog>
 
-    <!-- Dialog Salidas -->
-    <Dialog :visible.sync="modal3" :modal="true" :closable="true" :header="tituloModal3"
-      :containerStyle="{ width: '400px' }">
-      <form class="p-fluid">
-        <div class="p-field">
-          <label>Importe</label>
-          <InputText v-model="salidas" placeholder="0.00" />
+
+    <!-- Dialog Retiros -->
+    <Dialog :visible.sync="modal3" :modal="true" :closable="false"
+      :containerStyle="{ width: '400px', borderRadius: '10px' }">
+      <!-- Header personalizado -->
+      <template #header>
+        <div class="dialog-header">
+          <i class="pi pi-wallet header-icon"></i>
+          <span class="header-title">{{ tituloModal3 }}</span>
         </div>
+      </template>
+
+      <!-- Contenido -->
+      <form @submit.prevent="retirar" class="p-fluid">
+        <!-- Importe (obligatorio) -->
         <div class="p-field">
-          <label>Descripcion de Importe</label>
-          <InputText v-model="Dessalidas" placeholder="Descripcion" />
+          <label class="label-input">
+            Importe <span class="text-required">*</span>
+          </label>
+          <InputText v-model="salidas" placeholder="0.00" class="input-full" />
         </div>
+
+        <!-- Descripción (opcional) -->
+        <div class="p-field">
+          <label for="descripcion" class="optional-field">
+            <i class="pi pi-info-circle optional-icon"></i>
+            Descripción
+          </label>
+          <InputText v-model="Dessalidas" placeholder="Escribe una descripción" class="input-full" />
+        </div>
+
+        <!-- Errores -->
         <div v-show="errorCaja" class="div-error">
           <div class="text-error">
-            <div v-for="error in errorMostrarMsjCaja" :key="error">
-              {{ error }}
-            </div>
+            <div v-for="error in errorMostrarMsjCaja" :key="error">{{ error }}</div>
           </div>
         </div>
       </form>
+
+      <!-- Footer -->
       <template #footer>
         <div class="d-flex gap-2 justify-content-end modal-footer-buttons">
-          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger p-button-sm" @click="cerrarModal3()"
+          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger btn-sm" @click="cerrarModal3()"
             type="button" />
-          <Button v-if="tipoAccion == 3" label="Retirar" icon="pi pi-arrow-right" class="p-button-success p-button-sm"
+          <Button v-if="tipoAccion == 3" label="Retirar" icon="pi pi-arrow-right" class="p-button-success btn-sm"
             @click="retirar()" type="button" />
         </div>
       </template>
     </Dialog>
 
     <!-- Dialog Ver Transacciones -->
-    <Dialog :visible.sync="modal4" :modal="true" :closable="true" :header="tituloModal4"
-      :containerStyle="{ width: '600px' }">
-      <TabView>
-        <TabPanel header="Transacciones Extras">
-          <TransaccionExtra :data="extra" :key="extraKey" />
-        </TabPanel>
-      </TabView>
+    <Dialog :visible.sync="modal4" :modal="true" :closable="false"
+      :containerStyle="{ width: '600px', borderRadius: '10px' }">
+      <!-- Header personalizado -->
+      <template #header>
+        <div class="dialog-header">
+          <i class="pi pi-list header-icon"></i>
+          <span class="header-title">{{ tituloModal4 }}</span>
+        </div>
+      </template>
+
+      <!-- Contenido -->
+      <div class="p-fluid">
+        <TransaccionExtra :data="extra" :key="extraKey" />
+      </div>
+
+      <!-- Footer -->
       <template #footer>
         <div class="d-flex gap-2 justify-content-end modal-footer-buttons">
-          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger p-button-sm" @click="cerrarModal4()"
+          <Button label="Cerrar" icon="pi pi-times" class="p-button-danger btn-sm" @click="cerrarModal4()"
             type="button" />
         </div>
       </template>
     </Dialog>
 
     <!-- Dialog Arqueo de Caja -->
-    <Dialog :visible.sync="modal5" :modal="true" :closable="true" :header="tituloModal5"
-      :containerStyle="{ width: '400px' }">
-      <form class="p-fluid">
+    <Dialog :visible.sync="modal5" :modal="true" :closable="false"
+      :containerStyle="{ width: '400px', borderRadius: '10px' }">
+      <!-- Header personalizado -->
+      <template #header>
+        <div class="dialog-header">
+          <i class="pi pi-lock header-icon"></i>
+          <span class="header-title">{{ tituloModal5 }}</span>
+        </div>
+      </template>
+
+      <!-- Contenido -->
+      <form @submit.prevent="guardarMontoCierre" class="p-fluid">
         <div class="p-field">
-          <label>Monto Total de Cierre (Bs.)</label>
-          <InputNumber v-model="montoCierre" mode="decimal" :minFractionDigits="2"
-            placeholder="Ingrese el monto total" />
+          <label class="label-input">
+            Monto Total de Cierre (Bs) <span class="text-required">*</span>
+          </label>
+          <InputNumber v-model="montoCierre" mode="decimal" :minFractionDigits="2" placeholder="Ingrese el monto total"
+            class="input-number-full" />
+        </div>
+
+        <!-- Errores -->
+        <div v-show="errorCaja" class="div-error">
+          <div class="text-error">
+            <div v-for="error in errorMostrarMsjCaja" :key="error">{{ error }}</div>
+          </div>
         </div>
       </form>
+
+      <!-- Footer -->
       <template #footer>
         <div class="d-flex gap-2 justify-content-end modal-footer-buttons">
-          <Button label="Cancelar" icon="pi pi-times" class="p-button-danger p-button-sm" @click="cerrarModal5()"
+          <Button label="Cancelar" icon="pi pi-times" class="p-button-danger btn-sm" @click="cerrarModal5()"
             type="button" />
-          <Button v-if="tipoAccion == 5" label="Guardar" icon="pi pi-check" class="p-button-success p-button-sm"
+          <Button v-if="tipoAccion == 5" label="Guardar" icon="pi pi-check" class="p-button-success btn-sm"
             @click="guardarMontoCierre()" type="button" />
         </div>
       </template>
@@ -211,6 +289,8 @@ import TabView from "primevue/tabview";
 import TabPanel from "primevue/tabpanel";
 import TransaccionExtra from "./Tables/TransaccionExtra.vue";
 import Swal from "sweetalert2";
+import ToastService from 'primevue/toastservice';
+import Toast from 'primevue/toast';
 
 export default {
   components: {
@@ -225,6 +305,8 @@ export default {
     Paginator,
     TabView,
     TabPanel,
+    ToastService,
+    Toast,
     TransaccionExtra,
   },
   data() {
@@ -332,22 +414,6 @@ export default {
     },
   },
   methods: {
-    toastSuccess(mensaje) {
-      this.$toasted.show(
-        `
-    <div style="height: 50px;font-size:16px;">
-        <br>
-        ` +
-        mensaje +
-        `.<br>
-    </div>`,
-        {
-          type: "success",
-          position: "bottom-right",
-          duration: 2000,
-        }
-      );
-    },
     onPageChange(event) {
       // PrimeVue paginator: event.page is 0-based
       const newPage = event.page + 1;
@@ -357,13 +423,14 @@ export default {
       this.mostrarLabel = window.innerWidth > 768; // cambia según breakpoint deseado
     },
     guardarMontoCierre() {
-      // Aquí puedes hacer lo que necesites con el monto
-      console.log("Monto de cierre registrado:", this.montoCierre);
       this.idCajaBotonesSecundarios = this.id;
-
-      // Opcional: cerrar el modal y mostrar alerta
       this.cerrarModal5();
-      this.toastSuccess("Monto de cierre registrado localmente.");
+      this.$toast.add({
+        severity: "success",
+        summary: "Monto Guardado",
+        detail: "Monto de cierre registrado localmente",
+        life: 2500,
+      });
     },
     async listarCaja(page, buscar, criterio) {
       let me = this;
@@ -382,9 +449,7 @@ export default {
 
     cambiarPagina(page, buscar, criterio) {
       let me = this;
-      //Actualiza la página actual
       me.pagination.current_page = page;
-      //Envia la petición para visualizar la data de esa página
       me.listarCaja(page, buscar, criterio);
     },
     async registrarCaja() {
@@ -406,11 +471,19 @@ export default {
 
         me.cerrarModal();
         await me.listarCaja(1, "", "id");
-
-        this.toastSuccess("Caja aperturada de forma satisfactoria!");
+        this.$toast.add({
+          severity: "success",
+          summary: "Caja Aperturada",
+          detail: "Caja aperturada de forma satisfactoria!",
+          life: 2500,
+        });
       } catch (error) {
-        console.error("Error al registrar caja:", error);
-        Swal.fire("Error", "No se pudo aperturar la caja", "error");
+        this.$toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: "No se pudo aperturar la caja",
+          life: 3000,
+        });
       } finally {
         this.isLoading = false; // Desactivar loading
       }
@@ -428,10 +501,19 @@ export default {
 
         me.cerrarModal2();
         await me.listarCaja(1, "", "id");
-        this.toastSuccess("Transacción de caja registrada satisfactoriamente!");
+        this.$toast.add({
+          severity: "success",
+          summary: "Deposito Extra",
+          detail: "Transacción de caja registrada satisfactoriamente",
+          life: 2500,
+        });
       } catch (error) {
-        console.error("Error al depositar:", error);
-        Swal.fire("Error", "No se pudo realizar el depósito", "error");
+        this.$toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: "No se pudo realizar el depósito",
+          life: 3000,
+        });
       } finally {
         this.isLoading = false; // Desactivar loading
       }
@@ -449,11 +531,20 @@ export default {
 
         me.cerrarModal3();
         await me.listarCaja(1, "", "id");
-
-        this.toastSuccess("Transacción de caja registrada satisfactoriamente!");
+        this.$toast.add({
+          severity: "success",
+          summary: "Retiro Extra",
+          detail: "Transacción de caja registrada satisfactoriamente",
+          life: 2500,
+        });
       } catch (error) {
-        console.error("Error al retirar:", error);
-        Swal.fire("Error", "No se pudo realizar el retiro", "error");
+        this.$toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: "No se pudo realizar el retiro",
+          life: 3000,
+        });
+
       } finally {
         this.isLoading = false; // Desactivar loading
       }
@@ -516,11 +607,20 @@ export default {
           });
 
           await me.listarCaja(1, "", "id");
-          this.toastSuccess("La caja fue cerrada con éxito");
+          this.$toast.add({
+            severity: "success",
+            summary: "Cierre de Caja",
+            detail: "La caja fue cerrada con éxito",
+            life: 2500,
+          });
         }
       } catch (error) {
-        console.error("Error al cerrar caja:", error);
-        Swal.fire("Error", "No se pudo cerrar la caja", "error");
+        this.$toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: "No se pudo cerrar la caja",
+          life: 3000,
+        });
       } finally {
         this.isLoading = false; // Desactivar loading
       }
@@ -552,6 +652,8 @@ export default {
       this.idsucursal = 0;
       this.sucursal = "";
       this.saldoInicial = "";
+      this.errorCaja = 0;
+      this.errorMostrarMsjCaja = [];
     },
 
     cerrarModal2() {
@@ -591,7 +693,7 @@ export default {
               }
 
               this.modal = 1;
-              this.tituloModal = "APERTURA DE CAJA SUCURSAL: ";
+              this.tituloModal = "Apertura de Caja";
               this.saldoInicial = "";
               this.mostrarBotonesSecundarios = false;
 
@@ -739,6 +841,171 @@ export default {
 };
 </script>
 <style scoped>
+/* 🔹 Estilo más pequeño para todos los Toasts */
+.p-toast {
+  width: 300px !important;
+  /* más angosto */
+  font-size: 0.75rem !important;
+  /* texto más pequeño */
+}
+
+.p-toast-message {
+  padding: 0.6rem 0.8rem !important;
+  /* menos espacio interno */
+  border-radius: 6px !important;
+}
+
+.p-toast-message-content {
+  gap: 0.4rem !important;
+  /* reduce separación entre ícono y texto */
+}
+
+.p-toast-message-text {
+  line-height: 1.2;
+}
+
+.p-toast-summary {
+  font-weight: 600;
+  font-size: 0.85rem !important;
+}
+
+.p-toast-detail {
+  font-size: 0.8rem !important;
+  opacity: 0.9;
+}
+
+/* 🔹 Ícono más pequeño */
+.p-toast-icon {
+  font-size: 1rem !important;
+}
+
+/* 🔹 Márgenes y posición */
+.p-toast-top-right {
+  top: 1rem !important;
+  right: 1rem !important;
+}
+
+/* 🔹 Header personalizado */
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.header-icon {
+  font-size: 1rem;
+  color: #2563eb;
+  /* azul elegante */
+}
+
+.header-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+  /* gris oscuro */
+  letter-spacing: 0.3px;
+}
+
+/* 🔹 Botones pequeños */
+.btn-sm {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  line-height: 1.1;
+}
+
+.btn-sm .pi {
+  font-size: 0.75rem;
+  margin-right: 4px;
+}
+
+.modal-footer-buttons {
+  margin-top: 10px;
+  padding-top: 0.5rem;
+}
+
+/* 🔹 Label obligatorio */
+.label-input {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.text-required {
+  color: #dc2626;
+  /* rojo */
+  font-weight: 700;
+}
+
+/* Estilos para campos opcionales */
+.optional-field {
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.optional-icon {
+  color: #17a2b8;
+  font-size: 0.5rem;
+}
+
+
+.input-full {
+  width: 100%;
+  /* 🔹 ocupa todo el ancho */
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  /* evita que el padding rompa el ancho */
+}
+
+.input-full:focus {
+  border-color: #3b82f6;
+  /* azul elegante al enfocar */
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* 🔹 Estilo especial para InputNumber */
+.input-number-full {
+  width: 100%;
+}
+
+.input-number-full>>>.p-inputtext {
+  width: 100% !important;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+/* 🔹 Error */
+.div-error {
+  margin-top: 0.5rem;
+}
+
+.text-error {
+  color: #dc2626;
+  font-size: 0.8rem;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 6px 10px;
+  line-height: 1.2;
+}
+
+.text-error div+div {
+  margin-top: 2px;
+}
+
 .tabla-caja {
   width: 100%;
   white-space: nowrap;
@@ -948,19 +1215,6 @@ export default {
   margin-right: 0.2rem;
 }
 
-/* Estilos para campos opcionales */
-.optional-field {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: 500;
-  color: #6c757d;
-}
-
-.optional-icon {
-  color: #17a2b8;
-  font-size: 0.8rem;
-}
 
 .activo {
   color: green;
@@ -1205,8 +1459,8 @@ export default {
   }
 
   >>>.p-tag {
-    font-size: 0.7rem;
-    padding: 0.2rem 0.4rem;
+    font-size: 0.5rem;
+    padding: 0.1rem 0.2rem;
   }
 
   /* Espacios aún más compactos en móviles extra pequeños */
@@ -1424,9 +1678,5 @@ export default {
   100% {
     transform: rotate(360deg);
   }
-}
-
-.modal-footer-buttons {
-  padding-top: 1rem;
 }
 </style>
