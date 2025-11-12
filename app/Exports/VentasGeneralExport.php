@@ -1,16 +1,22 @@
 <?php
 namespace App\Exports;
+
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithColumnWidths, WithStyles
+class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithColumnWidths, WithStyles, WithEvents
 {
     protected $filters;
+    protected $totalVentasRegistradas = 0;
 
     public function __construct(array $filters)
     {
@@ -66,13 +72,18 @@ class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithC
 
     public function map($row): array
     {
+        $estado = $row->estado == 1 ? 'Registrado' : 'Anulado';
+        if ($estado == 'Registrado') {
+            $this->totalVentasRegistradas += $row->total;
+        }
+
         return [
             $row->num_comprobante,
             date('d/m/Y H:i', strtotime($row->fecha_hora)),
             mb_strimwidth($row->cliente, 0, 30, '...'),
             number_format($row->total, 2),
             mb_strimwidth($row->vendedor, 0, 25, '...'),
-            $row->estado == 1 ? 'Registrado' : 'Anulado'
+            $estado
         ];
     }
 
@@ -90,7 +101,6 @@ class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithC
 
     public function styles(Worksheet $sheet)
     {
-        // Encabezado en negrita con fondo celeste
         $sheet->getStyle('A1:F1')->applyFromArray([
             'font' => ['bold' => true],
             'fill' => [
@@ -98,6 +108,36 @@ class VentasGeneralExport implements FromQuery, WithHeadings, WithMapping, WithC
                 'startColor' => ['rgb' => 'DDEBF7'],
             ],
         ]);
-        return [];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+
+                $row = 2;
+                foreach ($this->query()->cursor() as $rowData) {
+                    if ($rowData->estado != 1) {
+                        $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
+                            'fill' => [
+                                'fillType' => 'solid',
+                                'startColor' => ['rgb' => 'BC544B'], 
+                            ],
+                        ]);
+                    }
+                    $row++;
+                }
+
+                $sheet->setCellValue('C' . $row, 'Total de ventas:');
+                $sheet->getStyle("C{$row}:E{$row}")->applyFromArray([
+                    'font' => ['bold' => true],
+                ]);
+                $sheet->setCellValue('D' . $row, number_format($this->totalVentasRegistradas, 2));
+                $sheet->getStyle("D{$row}:E{$row}")->applyFromArray([
+                    'font' => ['bold' => true],
+                ]);
+            }
+        ];
     }
 }

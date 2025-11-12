@@ -416,7 +416,7 @@ class ReportesVentas extends Controller
 
         $pdf->Ln(5);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(0, 8, utf8_decode('Total de ventas registradas: ' . number_format($totalVentasRegistradas, 2)), 0, 1, 'R');
+        $pdf->Cell(0, 8, utf8_decode('Total de ventas: ' . number_format($totalVentasRegistradas, 2)), 0, 1, 'R');
 
         // Descargar
         $pdf->Output('D', 'reporte_general_ventas_' . date('Ymd_His') . '.pdf');
@@ -427,13 +427,15 @@ class ReportesVentas extends Controller
     {
         $query = Venta::with(['detalles.producto', 'sucursal', 'usuario.persona', 'cliente'])
             ->join('users', 'ventas.idusuario', '=', 'users.id')
-            ->select('ventas.*');
+            ->join('sucursales', 'users.idsucursal', '=', 'sucursales.id')
+            ->select('ventas.*', 'sucursales.nombre as sucursal_nombre');
 
         $filtros = [];
-
         if ($request->filled('sucursal') && $request->sucursal !== 'undefined') {
             $query->where('users.idsucursal', $request->sucursal);
-            $filtros[] = "Sucursal: {$request->sucursal}";
+            $sucursal = Sucursales::find($request->sucursal);
+            $sucursalNombre = $sucursal ? $sucursal->nombre : 'Desconocida';
+            $filtros[] = "Sucursal: {$sucursalNombre}";
         }
 
         if ($request->filled('tipoReporte')) {
@@ -466,10 +468,11 @@ class ReportesVentas extends Controller
         $pdf = new PDFDetalleVentas();
         $pdf->AliasNbPages();
         $pdf->AddPage();
+
         $pdf->SetFont('Arial', 'B', 14);
         $pdf->Cell(0, 10, utf8_decode('REPORTE DETALLADO DE VENTAS'), 0, 1, 'C');
         $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 6, 'Fecha de generacion: ' . date('d/m/Y H:i'), 0, 1, 'C');
+        $pdf->Cell(0, 6, utf8_decode('Fecha de generación: ' . date('d/m/Y H:i')), 0, 1, 'C');
         $pdf->Ln(4);
 
         // Mostrar filtros aplicados
@@ -481,15 +484,29 @@ class ReportesVentas extends Controller
             $pdf->Ln(3);
         }
 
+        $totalVentasRegistradas = 0;
+
         foreach ($ventas as $venta) {
+            // Resaltar ventas anuladas
+            if ($venta->estado != 1) {
+                $pdf->SetTextColor(255, 0, 0);
+            } else {
+                $pdf->SetTextColor(0);
+                $totalVentasRegistradas += $venta->total;
+            }
+
             $pdf->SetFont('Arial', 'B', 11);
             $pdf->SetFillColor(230, 230, 230);
             $pdf->Cell(0, 7, utf8_decode("Venta Nro: {$venta->num_comprobante}"), 0, 1, 'L', true);
+
             $pdf->SetFont('Arial', '', 10);
+            $clienteNombre = $venta->cliente->nombre ?? 'S/N';
+            $clienteRecortado = mb_strimwidth(utf8_decode($clienteNombre), 0, 30, '...');
             $pdf->Cell(60, 6, 'Fecha: ' . date('d/m/Y H:i', strtotime($venta->fecha_hora)), 0, 0);
             $pdf->Cell(60, 6, 'Vendedor: ' . ($venta->usuario->persona->nombre ?? ''), 0, 1);
-            $pdf->Cell(60, 6, 'Cliente: ' . ($venta->cliente->nombre ?? 'S/N'), 0, 0);
-            $pdf->Cell(60, 6, 'Importe Bs: ' . number_format($venta->total, 2), 0, 1);
+            $pdf->Cell(60, 6, 'Sucursal: ' . utf8_decode($venta->sucursal_nombre), 0, 1);
+            $pdf->Cell(60, 6, 'Cliente: ' . $clienteRecortado, 0, 1);
+            $pdf->Cell(60, 6, 'Importe  : ' . number_format($venta->total  , 2), 0, 1);
             $pdf->Cell(60, 6, 'Estado: ' . ($venta->estado == 1 ? 'Registrado' : 'Anulado'), 0, 1);
             $pdf->Ln(2);
 
@@ -499,9 +516,9 @@ class ReportesVentas extends Controller
             $pdf->SetTextColor(255);
             $pdf->Cell(90, 7, 'Producto', 1, 0, 'C', true);
             $pdf->Cell(20, 7, 'Cant.', 1, 0, 'C', true);
-            $pdf->Cell(25, 7, 'Precio', 1, 0, 'C', true);
-            $pdf->Cell(25, 7, 'Descuento', 1, 0, 'C', true);
-            $pdf->Cell(30, 7, 'Subtotal', 1, 1, 'C', true);
+            $pdf->Cell(25, 7, 'Precio  ', 1, 0, 'C', true);
+            $pdf->Cell(25, 7, 'Descuento  ', 1, 0, 'C', true);
+            $pdf->Cell(30, 7, 'Subtotal  ', 1, 1, 'C', true);
 
             // Detalles
             $pdf->SetFont('Arial', '', 9);
@@ -509,15 +526,21 @@ class ReportesVentas extends Controller
             foreach ($venta->detalles as $d) {
                 $subtotal = ($d->precio * $d->cantidad) - $d->descuento;
                 $nombreProducto = $d->producto->nombre ?? '-';
-                $nombreRecortado = mb_strimwidth($nombreProducto, 0, 45, '...');
-                $pdf->Cell(90, 6, utf8_decode($nombreRecortado), 1);
+                $nombreRecortado = mb_strimwidth(utf8_decode($nombreProducto), 0, 45, '...');
+                $pdf->Cell(90, 6, $nombreRecortado, 1);
                 $pdf->Cell(20, 6, $d->cantidad, 1, 0, 'C');
-                $pdf->Cell(25, 6, number_format($d->precio, 2), 1, 0, 'R');
-                $pdf->Cell(25, 6, number_format($d->descuento, 2), 1, 0, 'R');
-                $pdf->Cell(30, 6, number_format($subtotal, 2), 1, 1, 'R');
+                $pdf->Cell(25, 6, number_format($d->precio  , 2), 1, 0, 'R');
+                $pdf->Cell(25, 6, number_format($d->descuento  , 2), 1, 0, 'R');
+                $pdf->Cell(30, 6, number_format($subtotal  , 2), 1, 1, 'R');
             }
             $pdf->Ln(5);
+            $pdf->SetTextColor(0); // Restablecer color
         }
+
+        // Total de ventas registradas
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(0, 8, utf8_decode('Total de ventas: ' . number_format($totalVentasRegistradas, 2)), 0, 1, 'R');
+
         $pdf->Output('D', 'ventas_detalladas_' . date('Ymd_His') . '.pdf');
         exit;
     }

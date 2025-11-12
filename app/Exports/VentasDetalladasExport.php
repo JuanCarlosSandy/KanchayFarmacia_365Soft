@@ -3,16 +3,22 @@ namespace App\Exports;
 
 use App\Venta;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Color;
 use Illuminate\Support\Collection;
 
-class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths
+class VentasDetalladasExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles, WithEvents
 {
     protected $filters;
-    protected $detalleHeaderRows = [];
+    protected $resumenRows = [];
+    protected $totalVentasRegistradas = 0;
+    protected $cachedCollection; // Nueva propiedad para cachear la colección
 
     public function __construct(array $filters)
     {
@@ -21,6 +27,11 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
 
     public function collection()
     {
+        // Si ya tenemos la colección cacheada, la retornamos
+        if ($this->cachedCollection) {
+            return $this->cachedCollection;
+        }
+
         $query = Venta::with(['detalles.producto', 'usuario.persona', 'cliente']);
 
         if (!empty($this->filters['sucursal']) && $this->filters['sucursal'] !== 'undefined') {
@@ -51,30 +62,45 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
         }
 
         $ventas = $query->orderBy('fecha_hora', 'asc')->get();
+
         $rows = new Collection();
-        $line = 2; // comenzamos en fila 2 porque headings ocupa la 1
+        $line = 2;
 
         foreach ($ventas as $venta) {
+            $estado = $venta->estado == 1 ? 'Registrado' : 'Anulado';
+
+            // Guardar la fila de resumen y su estado
+            $this->resumenRows[$line] = $estado;
+
             // Fila resumen de la venta
             $rows->push([
                 'Venta N°: ' . $venta->num_comprobante,
                 'Fecha: ' . date('d/m/Y H:i', strtotime($venta->fecha_hora)),
-                'Cliente: ' . ($venta->cliente->nombre ?? 'S/N'),
+                'Cliente: ' . mb_strimwidth($venta->cliente->nombre ?? 'S/N', 0, 40, '...'),
                 'Vendedor: ' . ($venta->usuario->persona->nombre ?? 'S/N'),
-                'Total (Bs): ' . number_format($venta->total, 2),
-                'Estado: ' . ($venta->estado == 1 ? 'Registrado' : 'Anulado'),
+                'Total: ' . number_format($venta->total, 2),
+                'Estado: ' . $estado,
                 '', '', '', ''
             ]);
-            $line++;
+
+            $line += 1;
+
             // Cabecera de detalle
             $rows->push([
                 'Producto', 'Cantidad', 'Precio', 'Descuento', 'Subtotal', '', '', '', ''
             ]);
-            $this->detalleHeaderRows[] = $line;
-            $line++;
-            // Detalles
+
+            $line += 1;
+
+            // Detalles - SOLO SUMAR SUBTOTALES DE VENTAS REGISTRADAS
             foreach ($venta->detalles as $d) {
                 $subtotal = ($d->precio * $d->cantidad) - $d->descuento;
+                
+                // SOLO SUMAR SI LA VENTA ESTÁ REGISTRADA
+                if ($venta->estado == 1) {
+                    $this->totalVentasRegistradas += $subtotal;
+                }
+                
                 $rows->push([
                     mb_strimwidth($d->producto->nombre ?? '-', 0, 40, '...'),
                     $d->cantidad,
@@ -83,19 +109,23 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
                     number_format($subtotal, 2),
                     '', '', '', ''
                 ]);
-                $line++;
+                $line += 1;
             }
+
             // Línea vacía
             $rows->push(['', '', '', '', '', '', '', '', '']);
-            $line++;
+            $line += 1;
         }
-        return $rows;
+
+        // Cachear la colección para evitar procesamiento duplicado
+        $this->cachedCollection = $rows;
+        return $this->cachedCollection;
     }
 
     public function headings(): array
     {
         return [
-            'Detalle de Ventas Detalladas',
+            'Reporte Detallado de Ventas',
             '', '', '', '', '', '', '', ''
         ];
     }
@@ -103,12 +133,12 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
     public function columnWidths(): array
     {
         return [
-            'A' => 40,
-            'B' => 15,
-            'C' => 15,
-            'D' => 15,
-            'E' => 18,
-            'F' => 10,
+            'A' => 50,  // Venta N° y Producto
+            'B' => 25,  // Fecha
+            'C' => 40,  // Cliente
+            'D' => 25,  // Vendedor
+            'E' => 20,  // Total
+            'F' => 20,  // Estado
             'G' => 10,
             'H' => 10,
             'I' => 10,
@@ -117,20 +147,54 @@ class VentasDetalladasExport implements FromCollection, WithHeadings, WithStyles
 
     public function styles(Worksheet $sheet)
     {
-        // Estilo del título principal
         $sheet->getStyle('A1')->getFont()->setBold(true);
+    }
 
-        // Aplicar fondo celeste a encabezados de detalle
-        foreach ($this->detalleHeaderRows as $row) {
-            $sheet->getStyle("A{$row}:E{$row}")->applyFromArray([
-                'font' => ['bold' => true],
-                'fill' => [
-                    'fillType' => 'solid',
-                    'startColor' => ['rgb' => 'DDEBF7'],
-                ],
-            ]);
-        }
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
 
-        return [];
+                // Colorear filas de resumen de ventas
+                foreach ($this->resumenRows as $row => $estado) {
+                    if ($estado == 'Registrado') {
+                        $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
+                            'fill' => [
+                                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                'startColor' => ['rgb' => 'DDEBF7'], // Celeste
+                            ],
+                        ]);
+                    } else {
+                        $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
+                            'fill' => [
+                                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                'startColor' => ['rgb' => 'BC544B'], // Rojo
+                            ],
+                        ]);
+                    }
+                }
+
+                // Aplicar fondo celeste a encabezados de detalle
+                // Usamos la colección cacheada en lugar de llamar al método collection() nuevamente
+                $row = 2;
+                foreach ($this->cachedCollection as $index => $rowData) {
+                    if (is_array($rowData) && isset($rowData[0]) && $rowData[0] == 'Producto') {
+                        $sheet->getStyle("A{$row}:E{$row}")->applyFromArray([
+                            'font' => ['bold' => true],
+                        ]);
+                    }
+                    $row++;
+                }
+
+                // Agregar total de ventas registradas al final
+                $row = $sheet->getHighestRow() + 1;
+                $sheet->setCellValue('D' . $row, 'Total de Ventas Registradas:');
+                $sheet->setCellValue('E' . $row, number_format($this->totalVentasRegistradas, 2));
+                $sheet->getStyle("D{$row}:E{$row}")->applyFromArray([
+                    'font' => ['bold' => true],
+                ]);
+            }
+        ];
     }
 }
