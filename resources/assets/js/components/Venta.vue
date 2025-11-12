@@ -532,9 +532,7 @@
               </Column>
               <Column field="descuento" header="Descuento (%)" style="width: 10%" class="column-descuento">
                 <template #body="slotProps">
-                  <InputNumber v-model="slotProps.data.descuento" :min="0" :max="100" :step="0.01" :suffix="' %'"
-                    @input="actualizarDetalle(slotProps.index)" class="p-inputtext-sm input-descuento"
-                    style="height: 32px;" mode="decimal" :minFractionDigits="2" />
+                  <span style="margin-left: 12.5%;padding: 5px;">{{ slotProps.data.descuento }}%</span>
                 </template>
               </Column>
               <Column field="total" header="Total" style="width: 15%">
@@ -1100,7 +1098,8 @@ export default {
         EFECTIVO: 1,
         TARJETA: 2,
         QR: 7,
-      },
+      },  
+      procesandoSeleccion: false,
     };
   },
 
@@ -1513,44 +1512,47 @@ export default {
         50
       );
     },
+    obtenerDescuentoVigente(producto) {
+      if (!producto.descuento || !producto.fecha_venc_descuento) {
+        return 0;
+      }
+
+      const fechaVencimiento = new Date(producto.fecha_venc_descuento);
+      const hoy = new Date();
+
+      if (fechaVencimiento >= hoy) {
+        return parseFloat(producto.descuento);
+      } else {
+        return 0;
+      }
+    },
     actualizarDetalle(index) {
       let detalle = this.arrayDetalle[index];
       let producto = this.arrayProductos[index];
+
+      let porcentajeDescuento = parseFloat(detalle.descuento) || 0;
+      if (porcentajeDescuento > 100) porcentajeDescuento = 100;
 
       producto.cantidad = detalle.cantidad;
       producto.precioUnitario = detalle.precioseleccionado;
 
       let subtotal = detalle.cantidad * producto.precioUnitario;
-
-      // 🔹 Descuento como porcentaje
-      let porcentajeDescuento = parseFloat(detalle.descuento) || 0;
-      if (porcentajeDescuento > 100) porcentajeDescuento = 100; // limitar a 100%
       let montoDescuento = subtotal * (porcentajeDescuento / 100);
-
       let totalConDescuento = subtotal - montoDescuento;
+
       if (totalConDescuento < 0) totalConDescuento = 0;
 
       producto.subTotal = totalConDescuento;
-
-      // Guardar el monto real del descuento en otra propiedad (opcional)
       detalle.montoDescuento = montoDescuento.toFixed(2);
       producto.montoDescuento = montoDescuento.toFixed(2);
 
-      if (
-        detalle &&
-        typeof detalle.precioseleccionado !== "undefined" &&
-        typeof detalle.cantidad !== "undefined"
-      ) {
+      if (detalle && typeof detalle.precioseleccionado !== "undefined" && typeof detalle.cantidad !== "undefined") {
         detalle.total = totalConDescuento.toFixed(2);
-
-        const productoIndex = this.arrayProductos.findIndex(
-          (p) => p.id === detalle.id
-        );
+        const productoIndex = this.arrayProductos.findIndex((p) => p.id === detalle.id);
         if (productoIndex !== -1) {
           this.arrayProductos[productoIndex].precio = parseFloat(detalle.precioseleccionado).toFixed(2);
         }
-
-        this.calcularTotal(); // recalcular total general
+        this.calcularTotal();
       } else {
         console.error("Datos inválidos en actualizarDetalle para el índice:", index);
       }
@@ -1778,44 +1780,32 @@ export default {
     },
     async buscarArticulo() {
       clearTimeout(this.debounceTimer);
-
       this.debounceTimer = setTimeout(async () => {
         if (!this.selectedAlmacen) {
           this.mostrarDesplegable = false;
           swal("Advertencia", "Selecciona un almacén primero", "warning");
           return;
         }
-
         if (!this.codigo.trim()) {
           this.mostrarDesplegable = false;
           return;
         }
-
+        
         try {
           const response = await axios.get(
             `/articulo/buscarArticuloVenta?filtro=${this.codigo}&idalmacen=${this.idAlmacen}`
           );
-
           this.resultadosBusqueda = response.data.articulos || [];
-
-          if (this.resultadosBusqueda.length === 1) {
-            // 🔹 Si hay un solo resultado, lo agrega automáticamente
-            const articulo = this.resultadosBusqueda[0];
-            this.seleccionarArticulo(articulo);
-            this.mostrarDesplegable = false;
-            this.codigo = ""; // Limpia el campo de búsqueda
-          } else {
-            // 🔹 Si hay más de uno, muestra el desplegable
-            this.mostrarDesplegable = this.resultadosBusqueda.length > 0;
-            this.indiceSeleccionado = 0;
-          }
+          
+          this.mostrarDesplegable = this.resultadosBusqueda.length > 0;
+          this.indiceSeleccionado = 0;
+          
         } catch (error) {
           console.error("Error al buscar artículo:", error);
           this.mostrarDesplegable = false;
         }
       }, 200);
     },
-
 
     moverSeleccion(direccion) {
       if (!this.mostrarDesplegable || this.resultadosBusqueda.length === 0) return;
@@ -1835,9 +1825,21 @@ export default {
     },
 
     seleccionarArticulo(articulo) {
-      this.arraySeleccionado = articulo;
+      this.desdeModal = false;
+      this.codigo = articulo.codigo;
       this.precioseleccionado = articulo.precio_uno;
-      this.agregarDetalle(); // agregas el detalle directo
+
+      const descuentoVigente = this.obtenerDescuentoVigente(articulo);
+      articulo.descuento = descuentoVigente;
+
+      this.arraySeleccionado = articulo;
+      this.mostrarDesplegable = false;
+      
+      this.agregarDetalle();
+      
+      setTimeout(() => {
+        this.codigo = "";
+      }, 100);
     },
     onPageChange(event) {
       let page = event.page + 1; // PrimeVue pages are 0-based, while your logic uses 1-based
@@ -1987,11 +1989,7 @@ export default {
     agregarDetalle() {
       const cantidad = this.cantidad * this.unidadPaquete;
 
-      // Verificar stock negativo
-      if (
-        this.saldosNegativos === 0 &&
-        this.arraySeleccionado.saldo_stock < cantidad
-      ) {
+      if (this.saldosNegativos === 0 && this.arraySeleccionado.saldo_stock < cantidad) {
         swal({
           type: "error",
           title: "Error...",
@@ -2001,32 +1999,16 @@ export default {
       }
 
       const precioUnitario = parseFloat(this.precioseleccionado);
-      const descuento = (
-        precioUnitario *
-        cantidad *
-        (this.descuentoProducto / 100)
-      ).toFixed(2);
+      const descuento = (precioUnitario * cantidad * (this.arraySeleccionado.descuento / 100)).toFixed(2);
       const total = (precioUnitario * cantidad - descuento).toFixed(2);
 
-      // 🔍 Verificar si el producto ya existe en el detalle
-      const existente = this.arrayDetalle.find(
-        (item) => item.idarticulo === this.arraySeleccionado.id
-      );
+      const existente = this.arrayDetalle.find((item) => item.idarticulo === this.arraySeleccionado.id);
 
       if (existente) {
-        // ✅ Si ya existe, solo sumamos cantidades y actualizamos totales
         existente.cantidad += cantidad;
-        const nuevoDescuento = (
-          precioUnitario *
-          existente.cantidad *
-          (existente.descuento / 100)
-        ).toFixed(2);
-        existente.total = (
-          precioUnitario * existente.cantidad -
-          nuevoDescuento
-        ).toFixed(2);
+        const nuevoDescuento = (precioUnitario * existente.cantidad * (existente.descuento / 100)).toFixed(2);
+        existente.total = (precioUnitario * existente.cantidad - nuevoDescuento).toFixed(2);
       } else {
-        // 🆕 Si no existe, se crea un nuevo detalle
         const nuevoDetalle = {
           id: Date.now(),
           idkit: -1,
@@ -2037,7 +2019,8 @@ export default {
           cantidad: cantidad,
           cantidad_paquetes: this.arraySeleccionado.unidad_envase,
           precio: precioUnitario,
-          descuento: this.descuentoProducto,
+          // 🔹 Usar el descuento del producto seleccionado
+          descuento: this.arraySeleccionado.descuento,
           stock: this.arraySeleccionado.saldo_stock,
           precioseleccionado: precioUnitario,
           total: total,
@@ -2046,27 +2029,13 @@ export default {
         this.arrayDetalle.push(nuevoDetalle);
       }
 
-      // 🧾 Ahora también actualizamos el arrayProductos (para facturación)
-      const productoExistente = this.arrayProductos.find(
-        (p) => p.codigoProducto === this.arraySeleccionado.codigo
-      );
+      const productoExistente = this.arrayProductos.find((p) => p.codigoProducto === this.arraySeleccionado.codigo);
 
       if (productoExistente) {
         productoExistente.cantidad += cantidad;
-
-        // 🔹 Recalcular el descuento total en base a la cantidad acumulada
-        const nuevoMontoDescuento =
-          productoExistente.precioUnitario *
-          productoExistente.cantidad *
-          (this.descuentoProducto / 100);
-
+        const nuevoMontoDescuento = productoExistente.precioUnitario * productoExistente.cantidad * (productoExistente.descuento / 100);
         productoExistente.montoDescuento = nuevoMontoDescuento.toFixed(2);
-
-        // 🔹 Calcular el nuevo subtotal
-        productoExistente.subTotal = (
-          productoExistente.precioUnitario * productoExistente.cantidad -
-          nuevoMontoDescuento
-        ).toFixed(2);
+        productoExistente.subTotal = (productoExistente.precioUnitario * productoExistente.cantidad - nuevoMontoDescuento).toFixed(2);
       } else {
         const nuevoProducto = {
           actividadEconomica: this.arraySeleccionado.actividadEconomica,
@@ -2076,22 +2045,23 @@ export default {
           cantidad: cantidad,
           unidadMedida: this.arraySeleccionado.codigoClasificador,
           precioUnitario: precioUnitario.toFixed(2),
-          montoDescuento: descuento, // 💰 monto del descuento
-          subTotal: total,           // 🧾 total con descuento aplicado
+          // 🔹 Usar el descuento del producto seleccionado
+          descuento: this.arraySeleccionado.descuento,
+          montoDescuento: descuento,
+          subTotal: total,
           numeroSerie: null,
           numeroImei: null,
         };
         this.arrayProductos.push(nuevoProducto);
       }
 
-      // 🔒 Limpieza
       this.precioBloqueado = true;
       this.arraySeleccionado = [];
       this.cantidad = 1;
       this.unidadPaquete = 1;
       this.descuentoProducto = 0;
+      this.arraySeleccionado = null;
 
-      // ✅ Mostrar Toast
       this.$toast.add({
         severity: "success",
         summary: "Producto agregado",
@@ -2110,14 +2080,15 @@ export default {
         return;
       }
 
-      // Asignar los valores directamente
-      this.desdeModal = true; // 🔹 Evita que el watch dispare la búsqueda
+      this.desdeModal = true;
       this.codigo = data.codigo;
       this.precioseleccionado = data.precio_uno;
-      this.arraySeleccionado = data; // 🔹 Guardar el artículo seleccionado
-      this.mostrarDesplegable = false;
 
-      // Agregar directamente al detalle
+      const descuentoVigente = this.obtenerDescuentoVigente(data);
+      data.descuento = descuentoVigente; 
+
+      this.arraySeleccionado = data;
+      this.mostrarDesplegable = false;
       this.agregarDetalle();
     },
     eliminarSeleccionado() {
@@ -2126,16 +2097,12 @@ export default {
     },
     listarArticulo(buscar, criterio) {
       clearTimeout(this.debounceTimer);
-
-      // Espera 300 ms después de que el usuario deje de escribir
       this.debounceTimer = setTimeout(() => {
         let me = this;
-
         if (!buscar || buscar.trim() === "") {
           me.arrayArticulo = [];
           return;
         }
-
         var url =
           "/articulo/listarArticuloVenta?buscar=" +
           buscar +
@@ -2143,18 +2110,16 @@ export default {
           criterio +
           "&idAlmacen=" +
           this.idAlmacen;
-
         axios
           .get(url)
           .then(function (response) {
             var respuesta = response.data;
             me.arrayArticulo = respuesta.articulos;
-            console.log("listar articulo", respuesta);
           })
           .catch(function (error) {
             console.log(error);
           });
-      }, 300); // Ajusta el tiempo si lo quieres más rápido o más lento
+      }, 300);
     },
     datosConfiguracion() {
       let me = this;

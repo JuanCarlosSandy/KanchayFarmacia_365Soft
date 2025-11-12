@@ -352,12 +352,14 @@
       <label for="descuento">Descuento (%)</label>
       <InputNumber
         id="descuento"
+        ref="descuentoInput"
         v-model.number="datosFormulario.descuento"
         mode="decimal"
-        min="0" max="100"
+        :min="0" :max="100"
         :minFractionDigits="2" :maxFractionDigits="2"
         suffix="%"
         class="w-100"
+        @input="validarDescuento"
       />
     </div>
 
@@ -1300,6 +1302,11 @@ export default {
       } catch (error) {
         this.erroresinventario[campo] = error.message;
       }
+    },
+    validarDescuento() {
+      this.datosFormulario.descuento = Number(this.datosFormulario.descuento);
+      if (this.datosFormulario.descuento < 0) this.datosFormulario.descuento = 0;
+      else if (this.datosFormulario.descuento > 100) this.datosFormulario.descuento = 100;
     },
     async enviarFormulario() {
       try {

@@ -348,11 +348,10 @@ class ArticuloController extends Controller
         if (!$request->ajax()) {
             return redirect('/');
         }
-
         $buscar = $request->buscar;
         $criterio = $request->criterio;
         $idAlmacen = $request->idAlmacen;
-        // 🚫 Si el campo de búsqueda está vacío, no devolvemos resultados
+
         if (empty($buscar)) {
             return ['articulos' => []];
         }
@@ -389,7 +388,9 @@ class ArticuloController extends Controller
                 'categorias.actividadEconomica',
                 'articulos.descripcion_fabrica',
                 'medidas.descripcion_medida as medida',
-                'medidas.codigoClasificador as codigoClasificador'
+                'medidas.codigoClasificador as codigoClasificador',
+                'articulos.descuento', 
+                'articulos.fecha_venc_descuento'
             )
             ->where('articulos.condicion', '=', 1)
             ->groupBy(
@@ -411,10 +412,11 @@ class ArticuloController extends Controller
                 'categorias.codigoProductoSin',
                 'categorias.actividadEconomica',
                 'medidas.descripcion_medida',
-                'medidas.codigoClasificador'
+                'medidas.codigoClasificador',
+                'articulos.descuento',
+                'articulos.fecha_venc_descuento' 
             );
 
-        // 🔍 Filtro de búsqueda
         if (!empty($palabrasBuscar)) {
             $articulos->where(function ($query) use ($palabrasBuscar, $buscar) {
                 foreach ($palabrasBuscar as $palabra) {
@@ -426,8 +428,6 @@ class ArticuloController extends Controller
                             ->orWhere('personas.nombre', 'like', '%' . $palabra . '%');
                     });
                 }
-
-                // búsqueda directa por código o nombre completo
                 $query->orWhere('articulos.codigo', 'like', '%' . $buscar . '%')
                     ->orWhere('articulos.codigo_alfanumerico', 'like', '%' . $buscar . '%')
                     ->orWhere('categorias.nombre', 'like', '%' . $buscar . '%')
@@ -435,22 +435,21 @@ class ArticuloController extends Controller
             });
         }
 
-        // 🔹 Priorizar los que empiezan con la búsqueda exacta
         $articulos->orderByRaw("
-        CASE 
-            WHEN articulos.nombre LIKE ? THEN 1
-            WHEN articulos.codigo LIKE ? THEN 1
-            WHEN articulos.codigo_alfanumerico LIKE ? THEN 1
-            WHEN articulos.nombre LIKE ? THEN 2
-            WHEN articulos.codigo LIKE ? THEN 2
-            WHEN articulos.codigo_alfanumerico LIKE ? THEN 2
-            ELSE 3
-        END
-    ", ["{$buscar}%", "{$buscar}%", "{$buscar}%", "%{$buscar}%", "%{$buscar}%", "%{$buscar}%"]);
+            CASE
+                WHEN articulos.nombre LIKE ? THEN 1
+                WHEN articulos.codigo LIKE ? THEN 1
+                WHEN articulos.codigo_alfanumerico LIKE ? THEN 1
+                WHEN articulos.nombre LIKE ? THEN 2
+                WHEN articulos.codigo LIKE ? THEN 2
+                WHEN articulos.codigo_alfanumerico LIKE ? THEN 2
+                ELSE 3
+            END
+        ", ["{$buscar}%", "{$buscar}%", "{$buscar}%", "%{$buscar}%", "%{$buscar}%", "%{$buscar}%"]);
 
         $articulos->orderBy('articulos.nombre', 'asc');
-
         $resultados = $articulos->get();
+
         return ['articulos' => $resultados];
     }
 
@@ -473,11 +472,9 @@ class ArticuloController extends Controller
     {
         if (!$request->ajax())
             return redirect('/');
-
         $filtro = trim($request->filtro);
         $idAlmacen = $request->idalmacen;
 
-        // 🔹 Consulta principal
         $articulos = Articulo::join('medidas', 'articulos.idmedida', '=', 'medidas.id')
             ->join('categorias', 'articulos.idcategoria', '=', 'categorias.id')
             ->join('proveedores', 'articulos.idproveedor', '=', 'proveedores.id')
@@ -508,7 +505,8 @@ class ArticuloController extends Controller
                 'unidad_envase',
                 'articulos.descripcion_fabrica',
                 'personas.nombre as nombre_proveedor',
-                // 🔹 Stock total del artículo en el almacén (o 0 si no tiene inventario)
+                'articulos.descuento', 
+                'articulos.fecha_venc_descuento', 
                 DB::raw('IFNULL(SUM(inventarios.saldo_stock), 0) as saldo_stock')
             )
             ->where(function ($query) use ($filtro) {
@@ -544,16 +542,17 @@ class ArticuloController extends Controller
                 'categorias.actividadEconomica',
                 'unidad_envase',
                 'articulos.descripcion_fabrica',
-                'personas.nombre'
+                'personas.nombre',
+                'articulos.descuento',
+                'articulos.fecha_venc_descuento' 
             )
-            // 🔹 Primero los que comienzan con el filtro, luego los que lo contienen
             ->orderByRaw("
-            CASE 
-                WHEN articulos.nombre LIKE ? THEN 1
-                WHEN articulos.nombre LIKE ? THEN 2
-                ELSE 3
-            END
-        ", ["{$filtro}%", "%{$filtro}%"])
+                CASE
+                    WHEN articulos.nombre LIKE ? THEN 1
+                    WHEN articulos.nombre LIKE ? THEN 2
+                    ELSE 3
+                END
+            ", ["{$filtro}%", "%{$filtro}%"])
             ->orderBy('articulos.nombre', 'asc')
             ->take(10)
             ->get();
