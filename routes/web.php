@@ -42,6 +42,8 @@ Route::group(["middleware" => ["auth"]], function () {
         Route::get("/articulonewindex", "ArticuloController@index2");
         Route::post("/articulo/registrar", "ArticuloController@store");
         Route::put("/articulo/actualizar", "ArticuloController@update");
+        Route::get('/articulo/detalle/{id}', 'ArticuloController@detalle');
+        Route::put('/articulo/actualizar-descuento/{id}', 'ArticuloController@updateDescuento');
         Route::put("/articulo/desactivar", "ArticuloController@desactivar");
         Route::put("/articulo/activar", "ArticuloController@activar");
         Route::get(

@@ -59,7 +59,9 @@ class ArticuloController extends Controller
                 'articulos.condicion',
                 'articulos.fotografia',
                 'articulos.codigo_alfanumerico',
-                'articulos.descripcion_fabrica'
+                'articulos.descripcion_fabrica',
+                'articulos.descuento',
+                'articulos.fecha_venc_descuento'
             )
             ->where('articulos.condicion', '=', 1);
 
@@ -93,7 +95,11 @@ class ArticuloController extends Controller
             'idrol' => $idrol
         ];
     }
-
+    public function detalle($id)
+    {
+        $articulo = Articulo::find($id);
+        return response()->json($articulo);
+    }
     public function index2(Request $request)
     {
         if (!$request->ajax())
@@ -230,6 +236,43 @@ class ArticuloController extends Controller
 
         return response()->json(["articulos" => $productos]);
     }
+    public function updateDescuento(Request $request, $id)
+    {
+        try {
+            $articulo = Articulo::findOrFail($id);
+
+            // 🔹 Limpiar la fecha si viene con formato ISO (ej: 2025-04-05T04:00:00.000Z)
+            $fecha = $request->input('fecha_venc_descuento');
+            if ($fecha) {
+                // Si contiene una "T", recortamos solo la parte de fecha
+                $fecha = strpos($fecha, 'T') !== false ? substr($fecha, 0, 10) : $fecha;
+            }
+
+            // 🔹 Actualizar los campos
+            $articulo->descuento = $request->input('descuento');
+            $articulo->fecha_venc_descuento = $fecha;
+            $articulo->updated_at = now();
+            $articulo->save();
+
+            return response()->json([
+                'message' => 'Descuento actualizado correctamente',
+                'data' => [
+                    'id' => $articulo->id,
+                    'descuento' => $articulo->descuento,
+                    'fecha_venc_descuento' => $articulo->fecha_venc_descuento,
+                    'updated_at' => $articulo->updated_at,
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al actualizar el descuento',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
 
     public function listarArticulo(Request $request)
     {

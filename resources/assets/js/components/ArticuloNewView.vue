@@ -46,6 +46,13 @@
                 class="p-button-info p-button-sm p-1" style="width: 110px; height: 28px"
                 @click="mostrarDetalles(slotProps.data)" />
             </span>
+            <span
+              v-else-if="column.field === 'codigo'"
+              :class="slotProps.data.descuento > 0 ? 'codigo-descuento' : ''"
+              :title="slotProps.data.codigo"   
+            >
+              {{ slotProps.data.codigo }}
+            </span>
             <span v-else-if="column.type === 'dynamicPrice'">
               {{
                 (
@@ -78,7 +85,11 @@
     <!-- MODAL REGISTRAR PRODUCTO -->
     <Dialog :visible.sync="dialogVisible" :modal="true" header="REGISTRAR ARTICULO" :closable="true" @hide="closeDialog"
       :containerStyle="dialogContainerStyle" class="responsive-dialog">
-      <form>
+  <form>
+    <TabView v-model:activeIndex="activeTab">
+        <!-- 🟢 TAB 1: DATOS DEL ARTÍCULO -->
+      <TabPanel header="Datos del Artículo">
+ 
         <div class="form-group row">
           <div class="col-md-6">
             <div>
@@ -333,8 +344,73 @@
             </div>
           </div>
         </div>
+      </TabPanel>
+      <TabPanel v-if="tipoAccion === 2" header="Descuento">
+  <!-- fila: descuento (6) + fecha (6) -->
+  <div class="form-group row align-items-center">
+    <div class="col-12 col-md-6">
+      <label for="descuento">Descuento (%)</label>
+      <InputNumber
+        id="descuento"
+        v-model.number="datosFormulario.descuento"
+        mode="decimal"
+        min="0" max="100"
+        :minFractionDigits="2" :maxFractionDigits="2"
+        suffix="%"
+        class="w-100"
+      />
+    </div>
 
-      </form>
+    <div class="col-12 col-md-6">
+      <label for="fecha_venc_descuento">Fecha de Vencimiento</label>
+      <input
+        type="date"
+        id="fecha_venc_descuento"
+        v-model="datosFormulario.fecha_venc_descuento"
+        class="form-control"
+        :min="new Date().toISOString().split('T')[0]"
+        placeholder="dd/mm/yyyy"
+      />
+      <small v-if="esFechaVencida" class="text-danger d-block mt-1">
+        ⚠️ El descuento ha vencido el {{ datosFormulario.fecha_venc_descuento }}.
+      </small>
+    </div>
+  </div>
+
+  <!-- fila: botones -->
+  <div class="row g-2 mt-2">
+    <div class="col-12 col-md-3">
+      <Button
+        label="Guardar"
+        icon="pi pi-save"
+        class="p-button-success p-button-sm w-100"
+        @click="guardarDescuento"
+        :disabled="
+          limpiandoDescuento ||
+          esFechaVencida ||
+          !datosFormulario.fecha_venc_descuento ||
+          datosFormulario.descuento <= 0
+        "
+      />
+    </div>
+
+    <div
+      class="col-12 col-md-3"
+      v-if="datosFormulario.descuento > 0 || datosFormulario.fecha_venc_descuento"
+    >
+      <Button
+        label="Quitar Descuento"
+        icon="pi pi-times"
+        class="p-button-danger p-button-sm w-100"
+        @click="limpiarDescuento"
+      />
+    </div>
+  </div>
+</TabPanel>
+
+
+  </TabView>
+  </form>
       <template #footer>
         <Button label="Cerrar" icon="pi pi-times" class="p-button-danger p-button-sm" @click="cerrarModal" />
         <Button v-if="tipoAccion == 1" class="p-button-success p-button-sm" label="Guardar" icon="pi pi-check"
@@ -382,6 +458,35 @@
         <div class="detalle-row detalle-stock">
           <span class="detalle-label"><i class="pi pi-box"></i> Stock mínimo:</span>
           <span class="badge-stock">{{ articuloSeleccionado.stock }}</span>
+        </div>
+        <!-- Descuento -->
+        <div class="detalle-row mt-3" v-if="articuloSeleccionado.descuento && articuloSeleccionado.descuento > 0">
+          <span class="detalle-label"><i class="pi pi-percentage"></i> Descuento:</span>
+          <span class="detalle-value text-success fw-bold">
+            {{ articuloSeleccionado.descuento }}%
+          </span>
+        </div>
+
+        <!-- Fecha de vencimiento -->
+        <div class="detalle-row" v-if="articuloSeleccionado.fecha_venc_descuento">
+          <span class="detalle-label"><i class="pi pi-calendar"></i> Fecha de vencimiento del descuento:</span>
+          <span
+            class="detalle-value"
+            :class="{
+              'text-danger fw-bold': new Date(articuloSeleccionado.fecha_venc_descuento) < new Date(),
+              'text-primary': new Date(articuloSeleccionado.fecha_venc_descuento) >= new Date()
+            }"
+          >
+            {{ new Date(articuloSeleccionado.fecha_venc_descuento).toLocaleDateString('es-BO') }}
+          </span>
+        </div>
+
+        <!-- Aviso si el descuento venció -->
+        <div v-if="articuloSeleccionado.fecha_venc_descuento && new Date(articuloSeleccionado.fecha_venc_descuento) < new Date()"
+          class="alert alert-warning mt-2 p-2 text-center"
+          style="font-size: 0.9rem;"
+        >
+          ⚠️ El descuento ha vencido.
         </div>
       </div>
     </div>
@@ -445,6 +550,9 @@ import VueBarcode from "vue-barcode";
 import { esquemaArticulos, esquemaInventario } from "../constants/validations";
 import ImportarExcelNewView from "./productos/ImportarExcelNewView.vue";
 import Swal from "sweetalert2";
+import TabView from "primevue/tabview";
+import TabPanel from "primevue/tabpanel";
+
 
 export default {
   components: {
@@ -470,9 +578,13 @@ export default {
     DialogMedidas,
     DialogAlmacenes,
     ImportarExcelNewView,
+    TabView,
+    TabPanel,
   },
   data() {
     return {
+      limpiandoDescuento: false,
+      activeTab: 0,
       dialogDetallesVisible: false,
       mostrarLabel: true,
       articuloSeleccionado: null,
@@ -487,6 +599,8 @@ export default {
       fechaVencimientoAlmacen: null,
       unidadStock: null,
       datosFormulario: {
+        descuento: 0,
+        fecha_venc_descuento: null,
         nombre: "",
         descripcion: "",
         nombre_generico: "",
@@ -628,6 +742,17 @@ export default {
     }
   },
   computed: {
+    esFechaVencida() {
+      if (!this.datosFormulario.fecha_venc_descuento) return false;
+
+      const hoy = new Date();
+      const fechaDescuento = new Date(this.datosFormulario.fecha_venc_descuento);
+
+      hoy.setHours(0, 0, 0, 0);
+      fechaDescuento.setHours(0, 0, 0, 0);
+
+      return fechaDescuento < hoy;
+    },
     imagen() {
       return this.fotoMuestra;
     },
@@ -703,6 +828,76 @@ export default {
     },
   },
   methods: {
+    async guardarDescuento() {
+      try {
+        const { descuento, fecha_venc_descuento, id } = this.datosFormulario;
+
+        // ✅ Validaciones básicas
+        if (descuento <= 0) {
+          Swal.fire("Atención", "El descuento debe ser mayor a 0%", "warning");
+          return;
+        }
+        if (!fecha_venc_descuento) {
+          Swal.fire("Atención", "Debe seleccionar una fecha de vencimiento", "warning");
+          return;
+        }
+
+        const payload = { id, descuento, fecha_venc_descuento };
+
+        await axios.put(`/articulo/actualizar-descuento/${id}`, payload);
+
+        Swal.fire({
+          icon: "success",
+          title: "Descuento guardado",
+          text: "El descuento fue aplicado correctamente",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        // 🔄 Refrescar tabla en tiempo real
+        this.listarArticulo(
+          this.pagination.current_page,
+          this.buscar || "",
+          this.criterio || "nombre"
+        );
+      } catch (error) {
+        console.error(error);
+        Swal.fire("Error", "No se pudo guardar el descuento", "error");
+      }
+    },
+    async limpiarDescuento() {
+      try {
+        this.limpiandoDescuento = true;
+
+        const payload = {
+          id: this.datosFormulario.id,
+          descuento: 0,
+          fecha_venc_descuento: null,
+        };
+
+        await axios.put(`/articulo/actualizar-descuento/${payload.id}`, payload);
+
+        this.datosFormulario.descuento = 0;
+        this.datosFormulario.fecha_venc_descuento = null;
+
+        this.toastSuccess("Descuento eliminado correctamente");
+        this.limpiandoDescuento = false;
+        this.listarArticulo(
+          this.pagination.current_page,
+          this.buscar || "",
+          this.criterio || "nombre"
+        );
+      } catch (error) {
+        console.error("❌ Error al limpiar descuento:", error);
+        this.limpiandoDescuento = false;
+        this.$toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: "No se pudo eliminar el descuento.",
+          life: 4000,
+        });
+      }
+    },
     calcularVentasDesdeCosto() {
       if (this.datosFormulario.precio_costo_unid && this.datosFormulario.precio_costo_unid > 0) {
         const costo = parseFloat(this.datosFormulario.precio_costo_unid);
@@ -1516,6 +1711,8 @@ export default {
       this.precio_dos = "";
       this.precio_tres = "";
       this.precio_cuatro = "";
+      this.descuento= 0;
+      this.fecha_venc_descuento= null;
     },
     abrirModal(modelo, accion, data = []) {
       switch (modelo) {
@@ -1585,122 +1782,140 @@ export default {
             }
             case "actualizar": {
               this.cerrarModal();
-              this.$nextTick(() => {
-                console.log("DATA ACTUALIZAR", data);
-                this.agregarStock = false;
-                this.dialogVisible = true;
-                this.tituloModal = "Actualizar Artículo";
-                this.tipoAccion = 2;
-                this.datosFormulario = {
-                  nombre: data["nombre"],
-                  descripcion: data["descripcion"],
-                  nombre_generico: data["nombre_generico"],
-                  unidad_envase: data["unidad_envase"],
-                  precio_costo_unid: this.calcularPrecioValorMoneda(data["precio_costo_unid"]),
-                  precio_costo_paq: this.calcularPrecioValorMoneda(data["precio_costo_paq"]),
-                  precio_venta: this.calcularPrecioValorMoneda(data["precio_venta"]),
-                  precio_uno: 0,
-                  precio_dos: 0,
-                  precio_tres: 0,
-                  precio_cuatro: 0,
-                  stock:
-                    this.tipo_stock == "paquetes"
-                      ? data["stock"] / data["unidad_envase"]
-                      : data["stock"],
-                  costo_compra: this.calcularPrecioValorMoneda(data["costo_compra"]),
-                  codigo: data["codigo"],
-                  codigo_alfanumerico: data["codigo_alfanumerico"] || "",
-                  descripcion_fabrica: data["descripcion_fabrica"] || "",
-                  idcategoria: null,
-                  idmarca: null,
-                  idindustria: null,
-                  idgrupo: null,
-                  idproveedor: null,
-                  idmedida: data["idmedida"],
-                  id: data["id"],
-                };
 
-                this.errores = {};
-                this.idmedida = data["idmedida"];
-                this.fotografia = data["fotografia"];
-                this.fotoMuestra = data["fotografia"]
-                  ? "img/articulo/" + data["fotografia"]
-                  : null;
-
-                this.industriaSeleccionado = {
-                  nombre: data["nombre_industria"],
-                  id: data["idindustria"],
-                };
-                this.lineaSeleccionado = {
-                  nombre: data["nombre_categoria"],
-                  id: data["idcategoria"],
-                };
-                this.marcaSeleccionado = {
-                  nombre: data["nombre_marca"],
-                  id: data["idmarca"],
-                };
-                this.proveedorSeleccionado = {
-                  nombre: data["nombre_proveedor"],
-                  id: data["idproveedor"],
-                };
-                this.grupoSeleccionado = {
-                  nombre_grupo: data["nombre_grupo"],
-                  id: data["idgrupo"],
-                };
-                this.medidaSeleccionado = {
-                  descripcion_medida: data["descripcion_medida"],
-                  id: data["idmedida"],
-                };
-
-                this.precios = [];
-
-                this.precio_uno = Number(this.calcularPrecioValorMoneda(data["precio_uno"])) || 0;
-                this.precio_dos = Number(this.calcularPrecioValorMoneda(data["precio_dos"])) || 0;
-                this.precio_tres = Number(this.calcularPrecioValorMoneda(data["precio_tres"])) || 0;
-                this.precio_cuatro = Number(this.calcularPrecioValorMoneda(data["precio_cuatro"])) || 0;
+              // ✅ Recargamos datos frescos desde backend
+              axios.get(`/articulo/detalle/${data.id}`).then((response) => {
+                const articulo = response.data;
 
                 this.$nextTick(() => {
-                  this.precios = [
-                    {
-                      id: 1,
-                      nombre_precio: "VENTA 1",
-                      valor: this.precio_uno,
-                      porcentaje: this.calcularPorcentaje(this.precio_uno),
-                      errorVenta: false
-                    },
-                    {
-                      id: 2,
-                      nombre_precio: "VENTA 2",
-                      valor: this.precio_dos,
-                      porcentaje: this.calcularPorcentaje(this.precio_dos),
-                      errorVenta: false
+                  console.log("DATA ACTUALIZAR (refrescado)", articulo);
+                  this.agregarStock = false;
+                  this.dialogVisible = true;
+                  this.tituloModal = "Actualizar Artículo";
+                  this.tipoAccion = 2;
+
+                  // 👇 Aquí usamos los valores ACTUALIZADOS desde la BD
+                  this.datosFormulario = {
+                    nombre: articulo.nombre,
+                    descripcion: articulo.descripcion,
+                    nombre_generico: articulo.nombre_generico,
+                    unidad_envase: articulo.unidad_envase,
+                    descuento:
+                      articulo.descuento !== undefined && articulo.descuento !== null
+                        ? articulo.descuento
+                        : 0,
+                    fecha_venc_descuento: articulo.fecha_venc_descuento
+                      ? articulo.fecha_venc_descuento.split("T")[0]
+                      : null,
+
+                    precio_costo_unid: this.calcularPrecioValorMoneda(articulo.precio_costo_unid),
+                    precio_costo_paq: this.calcularPrecioValorMoneda(articulo.precio_costo_paq),
+                    precio_venta: this.calcularPrecioValorMoneda(articulo.precio_venta),
+                    precio_uno: 0,
+                    precio_dos: 0,
+                    precio_tres: 0,
+                    precio_cuatro: 0,
+                    stock:
+                      this.tipo_stock == "paquetes"
+                        ? articulo.stock / articulo.unidad_envase
+                        : articulo.stock,
+                    costo_compra: this.calcularPrecioValorMoneda(articulo.costo_compra),
+                    codigo: articulo.codigo,
+                    codigo_alfanumerico: articulo.codigo_alfanumerico || "",
+                    descripcion_fabrica: articulo.descripcion_fabrica || "",
+                    idcategoria: null,
+                    idmarca: null,
+                    idindustria: null,
+                    idgrupo: null,
+                    idproveedor: null,
+                    idmedida: articulo.idmedida,
+                    id: articulo.id,
+                  };
+
+                  // el resto de tu código original aquí ⬇
+                  this.errores = {};
+                  this.idmedida = articulo.idmedida;
+                  this.fotografia = articulo.fotografia;
+                  this.fotoMuestra = articulo.fotografia
+                    ? "img/articulo/" + articulo.fotografia
+                    : null;
+
+                  this.industriaSeleccionado = {
+                    nombre: articulo.nombre_industria,
+                    id: articulo.idindustria,
+                  };
+                  this.lineaSeleccionado = {
+                    nombre: articulo.nombre_categoria,
+                    id: articulo.idcategoria,
+                  };
+                  this.marcaSeleccionado = {
+                    nombre: articulo.nombre_marca,
+                    id: articulo.idmarca,
+                  };
+                  this.proveedorSeleccionado = {
+                    nombre: articulo.nombre_proveedor,
+                    id: articulo.idproveedor,
+                  };
+                  this.grupoSeleccionado = {
+                    nombre_grupo: articulo.nombre_grupo,
+                    id: articulo.idgrupo,
+                  };
+                  this.medidaSeleccionado = {
+                    descripcion_medida: articulo.descripcion_medida,
+                    id: articulo.idmedida,
+                  };
+
+                  this.precios = [];
+
+                  this.precio_uno = Number(this.calcularPrecioValorMoneda(articulo.precio_uno)) || 0;
+                  this.precio_dos = Number(this.calcularPrecioValorMoneda(articulo.precio_dos)) || 0;
+                  this.precio_tres = Number(this.calcularPrecioValorMoneda(articulo.precio_tres)) || 0;
+                  this.precio_cuatro =
+                    Number(this.calcularPrecioValorMoneda(articulo.precio_cuatro)) || 0;
+
+                  this.$nextTick(() => {
+                    this.precios = [
+                      {
+                        id: 1,
+                        nombre_precio: "VENTA 1",
+                        valor: this.precio_uno,
+                        porcentaje: this.calcularPorcentaje(this.precio_uno),
+                        errorVenta: false,
+                      },
+                      {
+                        id: 2,
+                        nombre_precio: "VENTA 2",
+                        valor: this.precio_dos,
+                        porcentaje: this.calcularPorcentaje(this.precio_dos),
+                        errorVenta: false,
+                      },
+                    ];
+
+                    if (this.precio_tres > 0) {
+                      this.precios.push({
+                        id: 3,
+                        nombre_precio: "VENTA 3",
+                        valor: this.precio_tres,
+                        porcentaje: this.calcularPorcentaje(this.precio_tres),
+                        errorVenta: false,
+                      });
                     }
-                  ];
 
-                  if (this.precio_tres > 0) {
-                    this.precios.push({
-                      id: 3,
-                      nombre_precio: "VENTA 3",
-                      valor: this.precio_tres,
-                      porcentaje: this.calcularPorcentaje(this.precio_tres),
-                      errorVenta: false
-                    });
-                  }
+                    if (this.precio_cuatro > 0) {
+                      this.precios.push({
+                        id: 4,
+                        nombre_precio: "VENTA 4",
+                        valor: this.precio_cuatro,
+                        porcentaje: this.calcularPorcentaje(this.precio_cuatro),
+                        errorVenta: false,
+                      });
+                    }
 
-                  if (this.precio_cuatro > 0) {
-                    this.precios.push({
-                      id: 4,
-                      nombre_precio: "VENTA 4",
-                      valor: this.precio_cuatro,
-                      porcentaje: this.calcularPorcentaje(this.precio_cuatro),
-                      errorVenta: false
-                    });
-                  }
+                    this.$forceUpdate();
+                  });
 
-                  this.$forceUpdate();
+                  this.fechaVencimientoSeleccion = articulo.vencimiento === 1 ? true : false;
                 });
-
-                this.fechaVencimientoSeleccion = data["vencimiento"] === 1 ? true : false;
               });
 
               break;
@@ -2319,4 +2534,104 @@ export default {
   margin-top: 4px;
   font-size: 0.85rem;
 }
+.modern-date {
+  border: 1px solid #0d6efd;
+  border-radius: 0.6rem;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  color: #212529;
+  background-color: #f8faff;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 3px rgba(13, 110, 253, 0.15);
+}
+
+/* Efecto al enfocar */
+.modern-date:focus {
+  border-color: #0b5ed7;
+  outline: none;
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+  background-color: #fff;
+}
+
+/* 🔹 Ícono del calendario (Chrome, Edge, Safari) */
+.modern-date::-webkit-calendar-picker-indicator {
+  color: #0d6efd;
+  background: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%230d6efd' viewBox='0 0 24 24'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 16H5V9h14v11zM7 11h5v5H7v-5z'/%3E%3C/svg%3E")
+    no-repeat center;
+  background-size: 1rem;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.modern-date::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* 🔹 Borde rojo si hay error (por ejemplo, con clase .is-invalid) */
+.modern-date.is-invalid {
+  border-color: #dc3545 !important;
+  box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.25);
+}
+.text-danger-fecha {
+  color: #dc3545;
+  font-weight: 500;
+}
+.modern-date {
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  transition: 0.2s;
+}
+
+.modern-date:focus {
+  border-color: #0d6efd !important;
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+}
+.detalle-label {
+  font-weight: 600;
+  color: #555;
+  margin-right: 6px;
+}
+
+.detalle-value {
+  color: #222;
+}
+
+.badge-stock {
+  background-color: #0d6efd;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  color: #856404;
+  border-radius: 8px;
+  border: 1px solid #ffeeba;
+}
+.codigo-descuento {
+  background-color: #53d070 !important;
+  color: #fff !important;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: inline-block;           /* evita deformaciones */
+  white-space: nowrap;             /* impide que el texto salte de línea */
+  text-overflow: ellipsis;         /* corta con "..." si es muy largo */
+  overflow: hidden;                /* oculta el exceso de texto */
+  max-width: 110px;                /* ajusta el ancho visible */
+  text-align: center;              /* centra el contenido */
+  vertical-align: middle;
+}
+.codigo-descuento:hover {
+  background-color: #40b75e !important;
+}
+
+.codigo-descuento[title] {
+  cursor: pointer;
+}
+
 </style>
