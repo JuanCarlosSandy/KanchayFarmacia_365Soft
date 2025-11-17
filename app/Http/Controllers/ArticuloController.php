@@ -468,97 +468,94 @@ class ArticuloController extends Controller
 
         return ['articulos' => $articulos];
     }
-    public function buscarArticuloVenta(Request $request)
-    {
-        if (!$request->ajax())
-            return redirect('/');
-        $filtro = trim($request->filtro);
-        $idAlmacen = $request->idalmacen;
+   public function buscarArticuloVenta(Request $request)
+{
+    if (!$request->ajax())
+        return redirect('/');
 
-        $articulos = Articulo::join('medidas', 'articulos.idmedida', '=', 'medidas.id')
-            ->join('categorias', 'articulos.idcategoria', '=', 'categorias.id')
-            ->join('proveedores', 'articulos.idproveedor', '=', 'proveedores.id')
-            ->join('personas', 'proveedores.id', '=', 'personas.id')
-            ->leftJoin('inventarios', function ($join) use ($idAlmacen) {
-                $join->on('inventarios.idarticulo', '=', 'articulos.id')
-                    ->where('inventarios.idalmacen', '=', $idAlmacen);
-            })
-            ->select(
-                'articulos.id',
-                'articulos.nombre',
-                'articulos.codigo',
-                'articulos.codigo_alfanumerico',
-                'articulos.descripcion',
-                'articulos.precio_uno',
-                'articulos.precio_dos',
-                'articulos.precio_tres',
-                'articulos.precio_cuatro',
-                'articulos.precio_costo_unid',
-                'articulos.precio_costo_paq',
-                'articulos.fotografia',
-                'articulos.condicion',
-                'categorias.nombre as nombre_categoria',
-                'medidas.descripcion_medida as medida',
-                'medidas.codigoClasificador as codigoClasificador',
-                'categorias.codigoProductoSin',
-                'categorias.actividadEconomica',
-                'unidad_envase',
-                'articulos.descripcion_fabrica',
-                'personas.nombre as nombre_proveedor',
-                'articulos.descuento', 
-                'articulos.fecha_venc_descuento', 
-                DB::raw('IFNULL(SUM(inventarios.saldo_stock), 0) as saldo_stock')
-            )
-            ->where(function ($query) use ($filtro) {
-                $palabras = preg_split('/\s+/', $filtro);
-                foreach ($palabras as $palabra) {
-                    $query->where(function ($sub) use ($palabra) {
-                        $sub->where('articulos.nombre', 'LIKE', "%{$palabra}%")
-                            ->orWhere('articulos.codigo', 'LIKE', "%{$palabra}%")
-                            ->orWhere('articulos.descripcion', 'LIKE', "%{$palabra}%")
-                            ->orWhere('articulos.codigo_alfanumerico', 'LIKE', "%{$palabra}%");
-                    });
-                }
-            })
-            ->where('articulos.condicion', '=', 1)
-            ->groupBy(
-                'articulos.id',
-                'articulos.nombre',
-                'articulos.codigo',
-                'articulos.codigo_alfanumerico',
-                'articulos.descripcion',
-                'articulos.precio_uno',
-                'articulos.precio_dos',
-                'articulos.precio_tres',
-                'articulos.precio_cuatro',
-                'articulos.precio_costo_unid',
-                'articulos.precio_costo_paq',
-                'articulos.fotografia',
-                'articulos.condicion',
-                'categorias.nombre',
-                'medidas.descripcion_medida',
-                'medidas.codigoClasificador',
-                'categorias.codigoProductoSin',
-                'categorias.actividadEconomica',
-                'unidad_envase',
-                'articulos.descripcion_fabrica',
-                'personas.nombre',
-                'articulos.descuento',
-                'articulos.fecha_venc_descuento' 
-            )
-            ->orderByRaw("
-                CASE
-                    WHEN articulos.nombre LIKE ? THEN 1
-                    WHEN articulos.nombre LIKE ? THEN 2
-                    ELSE 3
-                END
-            ", ["{$filtro}%", "%{$filtro}%"])
-            ->orderBy('articulos.nombre', 'asc')
-            ->take(10)
-            ->get();
+    $filtro = trim($request->filtro);
+    $idAlmacen = $request->idalmacen;
 
-        return ['articulos' => $articulos];
+    // 🔹 Obtener configuración
+    $config = DB::table('configuracion_trabajos')->first();
+    $permitir_ofertas = $config->permitir_ofertas ?? 0;
+
+    $articulos = Articulo::join('medidas', 'articulos.idmedida', '=', 'medidas.id')
+        ->join('categorias', 'articulos.idcategoria', '=', 'categorias.id')
+        ->join('proveedores', 'articulos.idproveedor', '=', 'proveedores.id')
+        ->join('personas', 'proveedores.id', '=', 'personas.id')
+        ->leftJoin('inventarios', function ($join) use ($idAlmacen) {
+            $join->on('inventarios.idarticulo', '=', 'articulos.id')
+                 ->where('inventarios.idalmacen', '=', $idAlmacen);
+        })
+        ->select(
+            'articulos.id',
+            'articulos.nombre',
+            'articulos.codigo',
+            'articulos.codigo_alfanumerico',
+            'articulos.descripcion',
+            'articulos.precio_uno',
+            'articulos.precio_dos',
+            'articulos.precio_tres',
+            'articulos.precio_cuatro',
+            'articulos.precio_costo_unid',
+            'articulos.precio_costo_paq',
+            'articulos.fotografia',
+            'articulos.condicion',
+            'categorias.nombre as nombre_categoria',
+            'medidas.descripcion_medida as medida',
+            'medidas.codigoClasificador as codigoClasificador',
+            'categorias.codigoProductoSin',
+            'categorias.actividadEconomica',
+            'unidad_envase',
+            'articulos.descripcion_fabrica',
+            'personas.nombre as nombre_proveedor',
+            'articulos.descuento',
+            'articulos.fecha_venc_descuento',
+            DB::raw('IFNULL(SUM(inventarios.saldo_stock), 0) as saldo_stock')
+        )
+        ->where('articulos.condicion', '=', 1)
+        ->where(function ($query) use ($filtro) {
+            $palabras = preg_split('/\s+/', $filtro);
+            foreach ($palabras as $palabra) {
+                $query->where(function ($sub) use ($palabra) {
+                    $sub->where('articulos.nombre', 'LIKE', "%{$palabra}%")
+                        ->orWhere('articulos.codigo', 'LIKE', "%{$palabra}%")
+                        ->orWhere('articulos.descripcion', 'LIKE', "%{$palabra}%")
+                        ->orWhere('articulos.codigo_alfanumerico', 'LIKE', "%{$palabra}%");
+                });
+            }
+        })
+        ->groupBy(
+            'articulos.id','articulos.nombre','articulos.codigo','articulos.codigo_alfanumerico',
+            'articulos.descripcion','articulos.precio_uno','articulos.precio_dos','articulos.precio_tres',
+            'articulos.precio_cuatro','articulos.precio_costo_unid','articulos.precio_costo_paq',
+            'articulos.fotografia','articulos.condicion','categorias.nombre','medidas.descripcion_medida',
+            'medidas.codigoClasificador','categorias.codigoProductoSin','categorias.actividadEconomica',
+            'unidad_envase','articulos.descripcion_fabrica','personas.nombre','articulos.descuento',
+            'articulos.fecha_venc_descuento'
+        )
+        ->orderByRaw("
+            CASE
+                WHEN articulos.nombre LIKE ? THEN 1
+                WHEN articulos.nombre LIKE ? THEN 2
+                ELSE 3
+            END
+        ", ["{$filtro}%", "%{$filtro}%"])
+        ->orderBy('articulos.nombre', 'asc')
+        ->take(10)
+        ->get();
+
+    // 🔹 Aplicar regla: si NO se permite ofertas, descuento = "0.00"
+    if ($permitir_ofertas == 0) {
+        foreach ($articulos as $art) {
+            $art->descuento = "0.00";
+        }
     }
+
+    return ['articulos' => $articulos];
+}
+
     public function store(Request $request)
     {
         if (!$request->ajax())

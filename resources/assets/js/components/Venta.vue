@@ -311,7 +311,7 @@
                   </div>
 
                   <!-- 🔹 Estado de bonificación solo si está habilitado -->
-                  <div v-if="habilitacionpromocion" class="mensaje-bonificacion-activa"
+                  <div v-if="habilitacionpromocion && permitir_bonificacion == 1" class="mensaje-bonificacion-activa"
                     style="margin-top: 0.5rem; padding: 8px 12px; border-radius: 6px; font-weight: 600; display: inline-block;">
                     Cliente habilitado para bonificación ✅
                   </div>
@@ -338,16 +338,18 @@
                       <div class="card-body d-flex flex-column">
 
                         <!-- 🔹 Descuento al Total -->
-                        <div class="form-group mb-3">
+                        <div v-if="permitir_bonificacion == 1 || permitir_descuento == 1" class="form-group mb-3">
                           <label for="descuentoTotal" class="label-input">
                             <i class="fa fa-percent mr-1"></i> Descuento al Total
                           </label>
+
                           <div class="input-group input-group-sm custom-input-group">
                             <div class="input-group-prepend">
                               <span class="input-group-text addon-small">%</span>
                             </div>
+
                             <input type="number" id="descuentoTotal" class="form-control input-uniforme"
-                              v-model="descuentoAdicional" :disabled="!habilitacionpromocion"
+                              v-model="descuentoAdicional" :disabled="permitir_descuento != 1 && !habilitacionpromocion"
                               placeholder="Ingrese el % de descuento" min="0" max="100" />
                           </div>
                         </div>
@@ -518,7 +520,7 @@
                 <template #body="slotProps">
                   <input type="text" v-model="slotProps.data.precioseleccionado"
                     @input="actualizarDetalle(slotProps.index)" class="form-control form-control-sm input-precio-unidad"
-                    :disabled="slotProps.data.descripcion_fabrica != '1'"
+                    :disabled="permitir_cambioprecio == 0 && slotProps.data.descripcion_fabrica != '1'"
                     style="height: 32px; font-size: 0.875rem; padding: 0.25rem 0.3rem; text-align: center; width: 100%;" />
                 </template>
               </Column>
@@ -530,9 +532,12 @@
                     :ref="'inputCantidad_' + slotProps.index" />
                 </template>
               </Column>
-              <Column field="descuento" header="Descuento (%)" style="width: 10%" class="column-descuento">
+              <Column v-if="permitir_ofertas == 1" field="descuento" header="Descuento (%)" style="width: 10%"
+                class="column-descuento">
                 <template #body="slotProps">
-                  <span style="margin-left: 12.5%;padding: 5px;">{{ slotProps.data.descuento }}%</span>
+                  <span style="margin-left: 12.5%; padding: 5px;">
+                    {{ slotProps.data.descuento }}%
+                  </span>
                 </template>
               </Column>
               <Column field="total" header="Total" style="width: 15%">
@@ -970,6 +975,10 @@ export default {
       monedaVenta: [],
       permitirDevolucion: "",
       saldosNegativos: 1,
+      permitir_cambioprecio: false,
+      permitir_bonificacion: false,
+      permitir_descuento: false,
+      permitir_ofertas: false,
       venta_id: 0,
       idcliente: 0,
       usuarioAutenticado: null,
@@ -1098,7 +1107,7 @@ export default {
         EFECTIVO: 1,
         TARJETA: 2,
         QR: 7,
-      },  
+      },
       procesandoSeleccion: false,
     };
   },
@@ -1790,16 +1799,16 @@ export default {
           this.mostrarDesplegable = false;
           return;
         }
-        
+
         try {
           const response = await axios.get(
             `/articulo/buscarArticuloVenta?filtro=${this.codigo}&idalmacen=${this.idAlmacen}`
           );
           this.resultadosBusqueda = response.data.articulos || [];
-          
+
           this.mostrarDesplegable = this.resultadosBusqueda.length > 0;
           this.indiceSeleccionado = 0;
-          
+
         } catch (error) {
           console.error("Error al buscar artículo:", error);
           this.mostrarDesplegable = false;
@@ -1834,9 +1843,9 @@ export default {
 
       this.arraySeleccionado = articulo;
       this.mostrarDesplegable = false;
-      
+
       this.agregarDetalle();
-      
+
       setTimeout(() => {
         this.codigo = "";
       }, 100);
@@ -2085,7 +2094,7 @@ export default {
       this.precioseleccionado = data.precio_uno;
 
       const descuentoVigente = this.obtenerDescuentoVigente(data);
-      data.descuento = descuentoVigente; 
+      data.descuento = descuentoVigente;
 
       this.arraySeleccionado = data;
       this.mostrarDesplegable = false;
@@ -2136,6 +2145,14 @@ export default {
             respuesta.configuracionTrabajo.valor_moneda_venta,
             respuesta.configuracionTrabajo.simbolo_moneda_venta,
           ];
+          me.permitir_cambioprecio =
+            respuesta.configuracionTrabajo.permitir_cambioprecio;
+          me.permitir_bonificacion =
+            respuesta.configuracionTrabajo.permitir_bonificacion;
+          me.permitir_descuento =
+            respuesta.configuracionTrabajo.permitir_descuento; permitir_ofertas
+          me.permitir_ofertas =
+            respuesta.configuracionTrabajo.permitir_ofertas;
         })
         .catch(function (error) {
           console.log(error);

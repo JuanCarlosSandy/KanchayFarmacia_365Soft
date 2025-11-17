@@ -59,212 +59,212 @@ class VentaController extends Controller
         session_start();
     }
     public function index(Request $request)
-{
-    if (!$request->ajax()) {
-        return redirect('/');
-    }
-
-    $buscar = $request->buscar;
-    $usuario = \Auth::user();
-    $idrol = $usuario->idrol;
-    $idsucursal = $usuario->idsucursal;
-
-    // Obtener el codigoPuntoVenta
-    $codigoPuntoVenta = '';
-    if (!empty($usuario->idpuntoventa)) {
-        $puntoVenta = PuntoVenta::find($usuario->idpuntoventa);
-        if ($puntoVenta) {
-            $codigoPuntoVenta = $puntoVenta->codigoPuntoVenta;
+    {
+        if (!$request->ajax()) {
+            return redirect('/');
         }
-    }
 
-    // Obtener el codigoSucursal
-    $codigoSucursal = '';
-    $sucursal = Sucursales::find($idsucursal);
-    if ($sucursal) {
-        $codigoSucursal = $sucursal->codigoSucursal;
-    }
+        $buscar = $request->buscar;
+        $usuario = \Auth::user();
+        $idrol = $usuario->idrol;
+        $idsucursal = $usuario->idsucursal;
 
-    $query = Venta::join('users', 'ventas.idusuario', '=', 'users.id')
-        ->join('personas', 'ventas.idcliente', '=', 'personas.id')
-        ->join('sucursales', 'users.idsucursal', '=', 'sucursales.id')
-        ->leftJoin('facturas', 'ventas.id', '=', 'facturas.idventa')
-        ->select(
-            'ventas.tipo_comprobante',
-            'ventas.idcliente',
-            'ventas.id',
-            'ventas.serie_comprobante',
-            'ventas.num_comprobante',
-            'ventas.fecha_hora',
-            'ventas.impuesto',
-            'ventas.total',
-            'ventas.descuento_total',
-            'ventas.estado',
-            'users.usuario',
-            'personas.nombre as razonSocial',
-            'personas.num_documento as documentoid',
-            'facturas.id as idFactura',
-            'facturas.numeroFactura',
-            'facturas.cuf',
-            'facturas.cufd',
-            'facturas.codigoControl',
-            'facturas.correo',
-            'facturas.fechaEmision',
-            'sucursales.nombre as nombre_sucursal',
-            // 👇 Campo adicional: facturaValidada
-            \DB::raw("
+        // Obtener el codigoPuntoVenta
+        $codigoPuntoVenta = '';
+        if (!empty($usuario->idpuntoventa)) {
+            $puntoVenta = PuntoVenta::find($usuario->idpuntoventa);
+            if ($puntoVenta) {
+                $codigoPuntoVenta = $puntoVenta->codigoPuntoVenta;
+            }
+        }
+
+        // Obtener el codigoSucursal
+        $codigoSucursal = '';
+        $sucursal = Sucursales::find($idsucursal);
+        if ($sucursal) {
+            $codigoSucursal = $sucursal->codigoSucursal;
+        }
+
+        $query = Venta::join('users', 'ventas.idusuario', '=', 'users.id')
+            ->join('personas', 'ventas.idcliente', '=', 'personas.id')
+            ->join('sucursales', 'users.idsucursal', '=', 'sucursales.id')
+            ->leftJoin('facturas', 'ventas.id', '=', 'facturas.idventa')
+            ->select(
+                'ventas.tipo_comprobante',
+                'ventas.idcliente',
+                'ventas.id',
+                'ventas.serie_comprobante',
+                'ventas.num_comprobante',
+                'ventas.fecha_hora',
+                'ventas.impuesto',
+                'ventas.total',
+                'ventas.descuento_total',
+                'ventas.estado',
+                'users.usuario',
+                'personas.nombre as razonSocial',
+                'personas.num_documento as documentoid',
+                'facturas.id as idFactura',
+                'facturas.numeroFactura',
+                'facturas.cuf',
+                'facturas.cufd',
+                'facturas.codigoControl',
+                'facturas.correo',
+                'facturas.fechaEmision',
+                'sucursales.nombre as nombre_sucursal',
+                // 👇 Campo adicional: facturaValidada
+                \DB::raw("
                 CASE 
                     WHEN ventas.tipo_comprobante = 'FACTURA' AND facturas.id IS NOT NULL THEN 1
                     WHEN ventas.tipo_comprobante = 'FACTURA' AND facturas.id IS NULL THEN 0
                     ELSE 0
                 END as facturaValidada
             ")
-        )
-        ->orderBy('ventas.fecha_hora', 'desc');
+            )
+            ->orderBy('ventas.fecha_hora', 'desc');
 
-    // 🔹 FILTROS POR ROL
-    if ($idrol == 4) {
-        // Rol 4: puede ver TODO
-    } elseif ($idrol == 1) {
-        $query->where('users.idsucursal', $idsucursal);
-    } else {
-        $query->where('ventas.idusuario', $usuario->id);
+        // 🔹 FILTROS POR ROL
+        if ($idrol == 4) {
+            // Rol 4: puede ver TODO
+        } elseif ($idrol == 1) {
+            $query->where('users.idsucursal', $idsucursal);
+        } else {
+            $query->where('ventas.idusuario', $usuario->id);
+        }
+
+        // 🔍 FILTRO DE BÚSQUEDA
+        if (!empty($buscar)) {
+            $query->where(function ($q) use ($buscar) {
+                $q->where('ventas.num_comprobante', 'like', '%' . $buscar . '%')
+                    ->orWhere('personas.num_documento', 'like', '%' . $buscar . '%')
+                    ->orWhere('personas.nombre', 'like', '%' . $buscar . '%')
+                    ->orWhere('ventas.fecha_hora', 'like', '%' . $buscar . '%')
+                    ->orWhere('users.usuario', 'like', '%' . $buscar . '%');
+            });
+        }
+
+        $ventas = $query->paginate(10);
+
+        return [
+            'pagination' => [
+                'total' => $ventas->total(),
+                'current_page' => $ventas->currentPage(),
+                'per_page' => $ventas->perPage(),
+                'last_page' => $ventas->lastPage(),
+                'from' => $ventas->firstItem(),
+                'to' => $ventas->lastItem(),
+            ],
+            'ventas' => $ventas,
+            'usuario' => $usuario,
+            'codigoPuntoVenta' => $codigoPuntoVenta,
+            'codigoSucursal' => $codigoSucursal,
+        ];
     }
-
-    // 🔍 FILTRO DE BÚSQUEDA
-    if (!empty($buscar)) {
-        $query->where(function ($q) use ($buscar) {
-            $q->where('ventas.num_comprobante', 'like', '%' . $buscar . '%')
-                ->orWhere('personas.num_documento', 'like', '%' . $buscar . '%')
-                ->orWhere('personas.nombre', 'like', '%' . $buscar . '%')
-                ->orWhere('ventas.fecha_hora', 'like', '%' . $buscar . '%')
-                ->orWhere('users.usuario', 'like', '%' . $buscar . '%');
-        });
-    }
-
-    $ventas = $query->paginate(10);
-
-    return [
-        'pagination' => [
-            'total' => $ventas->total(),
-            'current_page' => $ventas->currentPage(),
-            'per_page' => $ventas->perPage(),
-            'last_page' => $ventas->lastPage(),
-            'from' => $ventas->firstItem(),
-            'to' => $ventas->lastItem(),
-        ],
-        'ventas' => $ventas,
-        'usuario' => $usuario,
-        'codigoPuntoVenta' => $codigoPuntoVenta,
-        'codigoSucursal' => $codigoSucursal,
-    ];
-}
 
 
 
     public function indexFactura(Request $request)
-{
-    if (!$request->ajax()) {
-        return redirect('/');
-    }
-
-    $buscar = $request->buscar;
-    $usuario = \Auth::user();
-    $idrol = $usuario->idrol;
-    $idsucursal = $usuario->idsucursal;
-
-    // Obtener el codigoPuntoVenta
-    $codigoPuntoVenta = '';
-    if (!empty($usuario->idpuntoventa)) {
-        $puntoVenta = PuntoVenta::find($usuario->idpuntoventa);
-        if ($puntoVenta) {
-            $codigoPuntoVenta = $puntoVenta->codigoPuntoVenta;
+    {
+        if (!$request->ajax()) {
+            return redirect('/');
         }
-    }
 
-    // Obtener el codigoSucursal
-    $codigoSucursal = '';
-    $sucursal = Sucursales::find($idsucursal);
-    if ($sucursal) {
-        $codigoSucursal = $sucursal->codigoSucursal;
-    }
+        $buscar = $request->buscar;
+        $usuario = \Auth::user();
+        $idrol = $usuario->idrol;
+        $idsucursal = $usuario->idsucursal;
 
-    $query = Venta::leftJoin('facturas', 'ventas.id', '=', 'facturas.idventa')
-        ->join('users', 'ventas.idusuario', '=', 'users.id')
-        ->join('personas', 'ventas.idcliente', '=', 'personas.id')
-        ->join('sucursales', 'users.idsucursal', '=', 'sucursales.id')
-        ->select(
-            'ventas.tipo_comprobante as tipo_comprobante',
-            'ventas.idcliente',
-            'ventas.id',
-            'ventas.serie_comprobante',
-            'ventas.num_comprobante',
-            'ventas.fecha_hora',
-            'ventas.impuesto',
-            'ventas.total',
-            'ventas.estado',
-            'ventas.descuento_total',
-            'users.usuario',
-            'personas.nombre as razonSocial',
-            'personas.num_documento as documentoid',
-            'facturas.id as idFactura',
-            'facturas.numeroFactura',
-            'facturas.cuf',
-            'facturas.cufd',
-            'facturas.codigoControl',
-            'facturas.correo',
-            'facturas.fechaEmision',
-            'sucursales.nombre as nombre_sucursal',
-            // 👇 Campo adicional: facturaValidada
-            \DB::raw("
+        // Obtener el codigoPuntoVenta
+        $codigoPuntoVenta = '';
+        if (!empty($usuario->idpuntoventa)) {
+            $puntoVenta = PuntoVenta::find($usuario->idpuntoventa);
+            if ($puntoVenta) {
+                $codigoPuntoVenta = $puntoVenta->codigoPuntoVenta;
+            }
+        }
+
+        // Obtener el codigoSucursal
+        $codigoSucursal = '';
+        $sucursal = Sucursales::find($idsucursal);
+        if ($sucursal) {
+            $codigoSucursal = $sucursal->codigoSucursal;
+        }
+
+        $query = Venta::leftJoin('facturas', 'ventas.id', '=', 'facturas.idventa')
+            ->join('users', 'ventas.idusuario', '=', 'users.id')
+            ->join('personas', 'ventas.idcliente', '=', 'personas.id')
+            ->join('sucursales', 'users.idsucursal', '=', 'sucursales.id')
+            ->select(
+                'ventas.tipo_comprobante as tipo_comprobante',
+                'ventas.idcliente',
+                'ventas.id',
+                'ventas.serie_comprobante',
+                'ventas.num_comprobante',
+                'ventas.fecha_hora',
+                'ventas.impuesto',
+                'ventas.total',
+                'ventas.estado',
+                'ventas.descuento_total',
+                'users.usuario',
+                'personas.nombre as razonSocial',
+                'personas.num_documento as documentoid',
+                'facturas.id as idFactura',
+                'facturas.numeroFactura',
+                'facturas.cuf',
+                'facturas.cufd',
+                'facturas.codigoControl',
+                'facturas.correo',
+                'facturas.fechaEmision',
+                'sucursales.nombre as nombre_sucursal',
+                // 👇 Campo adicional: facturaValidada
+                \DB::raw("
                 CASE 
                     WHEN facturas.id IS NOT NULL THEN 1
                     ELSE 0
                 END as facturaValidada
             ")
-        )
-        ->where('ventas.tipo_comprobante', '=', 'FACTURA')
-        ->orderBy('ventas.fecha_hora', 'desc');
+            )
+            ->where('ventas.tipo_comprobante', '=', 'FACTURA')
+            ->orderBy('ventas.fecha_hora', 'desc');
 
-    // 🔹 FILTROS POR ROL
-    if ($idrol == 4) {
-        // Rol 4: muestra TODO (sin filtro)
-    } elseif ($idrol == 1) {
-        // Rol 1: muestra ventas de su sucursal
-        $query->where('users.idsucursal', $idsucursal);
-    } else {
-        // Otros roles (por ejemplo vendedor): muestra solo sus ventas
-        $query->where('ventas.idusuario', $usuario->id);
+        // 🔹 FILTROS POR ROL
+        if ($idrol == 4) {
+            // Rol 4: muestra TODO (sin filtro)
+        } elseif ($idrol == 1) {
+            // Rol 1: muestra ventas de su sucursal
+            $query->where('users.idsucursal', $idsucursal);
+        } else {
+            // Otros roles (por ejemplo vendedor): muestra solo sus ventas
+            $query->where('ventas.idusuario', $usuario->id);
+        }
+
+        // 🔍 FILTRO DE BÚSQUEDA
+        if (!empty($buscar)) {
+            $query->where(function ($q) use ($buscar) {
+                $q->where('ventas.num_comprobante', 'like', '%' . $buscar . '%')
+                    ->orWhere('personas.num_documento', 'like', '%' . $buscar . '%')
+                    ->orWhere('personas.nombre', 'like', '%' . $buscar . '%')
+                    ->orWhere('ventas.fecha_hora', 'like', '%' . $buscar . '%')
+                    ->orWhere('users.usuario', 'like', '%' . $buscar . '%');
+            });
+        }
+
+        $ventas = $query->paginate(10);
+
+        return [
+            'pagination' => [
+                'total' => $ventas->total(),
+                'current_page' => $ventas->currentPage(),
+                'per_page' => $ventas->perPage(),
+                'last_page' => $ventas->lastPage(),
+                'from' => $ventas->firstItem(),
+                'to' => $ventas->lastItem(),
+            ],
+            'ventas' => $ventas,
+            'usuario' => $usuario,
+            'codigoPuntoVenta' => $codigoPuntoVenta,
+            'codigoSucursal' => $codigoSucursal,
+        ];
     }
-
-    // 🔍 FILTRO DE BÚSQUEDA
-    if (!empty($buscar)) {
-        $query->where(function ($q) use ($buscar) {
-            $q->where('ventas.num_comprobante', 'like', '%' . $buscar . '%')
-                ->orWhere('personas.num_documento', 'like', '%' . $buscar . '%')
-                ->orWhere('personas.nombre', 'like', '%' . $buscar . '%')
-                ->orWhere('ventas.fecha_hora', 'like', '%' . $buscar . '%')
-                ->orWhere('users.usuario', 'like', '%' . $buscar . '%');
-        });
-    }
-
-    $ventas = $query->paginate(10);
-
-    return [
-        'pagination' => [
-            'total' => $ventas->total(),
-            'current_page' => $ventas->currentPage(),
-            'per_page' => $ventas->perPage(),
-            'last_page' => $ventas->lastPage(),
-            'from' => $ventas->firstItem(),
-            'to' => $ventas->lastItem(),
-        ],
-        'ventas' => $ventas,
-        'usuario' => $usuario,
-        'codigoPuntoVenta' => $codigoPuntoVenta,
-        'codigoSucursal' => $codigoSucursal,
-    ];
-}
 
 
     public function indexRecibo(Request $request)
@@ -568,36 +568,36 @@ class VentaController extends Controller
 
         return ['venta' => $venta];
     }
-public function obtenerDetalles(Request $request)
-{
-    if (!$request->ajax())
-        return redirect('/');
+    public function obtenerDetalles(Request $request)
+    {
+        if (!$request->ajax())
+            return redirect('/');
 
-    $id = $request->id;
+        $id = $request->id;
 
-    $detalles = DetalleVenta::join('articulos', 'detalle_ventas.idarticulo', '=', 'articulos.id')
-        ->select(
-            'detalle_ventas.cantidad',
-            'detalle_ventas.precio',
-            'detalle_ventas.descuento', // porcentaje
-            'articulos.nombre as articulo',
-            'articulos.unidad_envase',
+        $detalles = DetalleVenta::join('articulos', 'detalle_ventas.idarticulo', '=', 'articulos.id')
+            ->select(
+                'detalle_ventas.cantidad',
+                'detalle_ventas.precio',
+                'detalle_ventas.descuento', // porcentaje
+                'articulos.nombre as articulo',
+                'articulos.unidad_envase',
 
-            // 🔹 Subtotal sin descuento (2 decimales)
-            DB::raw('ROUND(detalle_ventas.precio * detalle_ventas.cantidad, 2) as subtotal_sin_descuento'),
+                // 🔹 Subtotal sin descuento (2 decimales)
+                DB::raw('ROUND(detalle_ventas.precio * detalle_ventas.cantidad, 2) as subtotal_sin_descuento'),
 
-            // 🔹 Descuento en monto (2 decimales)
-            DB::raw('ROUND((detalle_ventas.precio * detalle_ventas.cantidad) * (detalle_ventas.descuento / 100), 2) as descuento_monto'),
+                // 🔹 Descuento en monto (2 decimales)
+                DB::raw('ROUND((detalle_ventas.precio * detalle_ventas.cantidad) * (detalle_ventas.descuento / 100), 2) as descuento_monto'),
 
-            // 🔹 Subtotal con descuento aplicado (2 decimales)
-            DB::raw('ROUND((detalle_ventas.precio * detalle_ventas.cantidad) - ((detalle_ventas.precio * detalle_ventas.cantidad) * (detalle_ventas.descuento / 100)), 2) as subtotal')
-        )
-        ->where('detalle_ventas.idventa', '=', $id)
-        ->orderBy('detalle_ventas.id', 'desc')
-        ->get();
+                // 🔹 Subtotal con descuento aplicado (2 decimales)
+                DB::raw('ROUND((detalle_ventas.precio * detalle_ventas.cantidad) - ((detalle_ventas.precio * detalle_ventas.cantidad) * (detalle_ventas.descuento / 100)), 2) as subtotal')
+            )
+            ->where('detalle_ventas.idventa', '=', $id)
+            ->orderBy('detalle_ventas.id', 'desc')
+            ->get();
 
-    return ['detalles' => $detalles];
-}
+        return ['detalles' => $detalles];
+    }
 
 
     public function pdf(Request $request, $id)
@@ -720,28 +720,41 @@ public function obtenerDetalles(Request $request)
     }
 
     private function actualizarPrecios($detalles)
-{
-    foreach ($detalles as $det) {
-        if (!isset($det['idarticulo']) || !isset($det['precioseleccionado'])) {
-            continue; // Evita errores si faltan datos
-        }
+    {
+        foreach ($detalles as $det) {
 
-        // Si el artículo es el 4648, no actualizar su precio
-        if ($det['idarticulo'] == 4648) {
-            continue;
-        }
+            if (!isset($det['idarticulo']) || !isset($det['precioseleccionado'])) {
+                continue; // Evita errores si faltan datos
+            }
 
-        // Convertir precio a decimal (float) con 4 decimales
-        $precio = number_format((float) $det['precioseleccionado'], 4, '.', '');
+            // Si el artículo es el 4648, no actualizar su precio
+            if ($det['idarticulo'] == 4648) {
+                continue;
+            }
 
-        $articulo = Articulo::find($det['idarticulo']); // Buscar artículo por ID
+            // Convertir precio a decimal (float) con 4 decimales
+            $precio = number_format((float) $det['precioseleccionado'], 4, '.', '');
 
-        if ($articulo) {
-            $articulo->precio_uno = $precio;
-            $articulo->save(); // Guardar cambios
+            $articulo = Articulo::find($det['idarticulo']); // Buscar artículo por ID
+
+            if ($articulo) {
+
+                // 🔹 GUARDAR PRECIO ANTERIOR
+                $precioOriginal = round(floatval($articulo->precio_uno), 4);
+                $precioNuevo = round(floatval($precio), 4);
+
+                // 🔹 SI EL PRECIO CAMBIA, ACTUALIZAR FECHA
+                if ($precioOriginal !== $precioNuevo) {
+                    $articulo->precio_actualizado_en = now();
+                }
+
+                // 🔹 ACTUALIZAR PRECIO
+                $articulo->precio_uno = $precio;
+
+                $articulo->save(); // Guardar cambios
+            }
         }
     }
-}
 
     private function calcularDescuentoMaximo($detalles)
     {
@@ -2705,43 +2718,44 @@ public function obtenerDetalles(Request $request)
         }
     }
 
-   public function ventaSelecionada($id)
-{
-    // Encuentra la venta
-    $venta = Venta::find($id);
+    public function ventaSelecionada($id)
+    {
+        // Encuentra la venta
+        $venta = Venta::find($id);
 
-    if (!$venta) {
-        return response()->json(['message' => 'Venta no encontrada'], 404);
+        if (!$venta) {
+            return response()->json(['message' => 'Venta no encontrada'], 404);
+        }
+
+        // 🔹 Obtener los detalles de esa venta
+        $detalles = \App\DetalleVenta::where('idventa', $id)->get();
+
+        // 🔸 Calcular el monto total de descuentos (en Bs)
+        $totalDescuentoDetalles = 0;
+
+        foreach ($detalles as $detalle) {
+            $precioUnitario = (float) $detalle->precio;
+            $cantidad = (float) $detalle->cantidad;
+            $descuentoPorcentaje = (float) $detalle->descuento; // está en %
+
+            // 💰 Convertir a monto real
+            $montoDescuento = $precioUnitario * $cantidad * ($descuentoPorcentaje / 100);
+            $totalDescuentoDetalles += $montoDescuento;
+        }
+
+        // 🔹 Descuento total real: el registrado menos lo calculado por detalle
+        $descuentoFinal = (float) $venta->descuento_total - $totalDescuentoDetalles;
+        if ($descuentoFinal < 0)
+            $descuentoFinal = 0;
+
+        // 🔹 Devolver la respuesta
+        return response()->json([
+            'id' => $venta->id,
+            'num_comprobante' => $venta->num_comprobante,
+            'total' => $venta->total,
+            'descuento' => number_format($descuentoFinal, 2, '.', ''),
+        ]);
     }
-
-    // 🔹 Obtener los detalles de esa venta
-    $detalles = \App\DetalleVenta::where('idventa', $id)->get();
-
-    // 🔸 Calcular el monto total de descuentos (en Bs)
-    $totalDescuentoDetalles = 0;
-
-    foreach ($detalles as $detalle) {
-        $precioUnitario = (float)$detalle->precio;
-        $cantidad = (float)$detalle->cantidad;
-        $descuentoPorcentaje = (float)$detalle->descuento; // está en %
-
-        // 💰 Convertir a monto real
-        $montoDescuento = $precioUnitario * $cantidad * ($descuentoPorcentaje / 100);
-        $totalDescuentoDetalles += $montoDescuento;
-    }
-
-    // 🔹 Descuento total real: el registrado menos lo calculado por detalle
-    $descuentoFinal = (float)$venta->descuento_total - $totalDescuentoDetalles;
-    if ($descuentoFinal < 0) $descuentoFinal = 0;
-
-    // 🔹 Devolver la respuesta
-    return response()->json([
-        'id' => $venta->id,
-        'num_comprobante' => $venta->num_comprobante,
-        'total' => $venta->total,
-        'descuento' => number_format($descuentoFinal, 2, '.', ''),
-    ]);
-}
 
 
     /*public function cerrarVenta(Request $request)

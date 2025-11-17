@@ -32,7 +32,7 @@
             @click="abrirModal('persona', 'registrar')" />
 
           <!-- 🟢 Nuevo botón Monto Bonificación -->
-          <Button icon="pi pi-wallet" :label="mostrarLabel ? 'Monto Bonificación' : ''"
+          <Button v-if="permitir_bonificacion == 1" icon="pi pi-wallet" :label="mostrarLabel ? 'Monto Bonificación' : ''"
             class="p-button-success p-button-sm ml-2" @click="abrirDialogMontoCliente()" />
         </div>
       </div>
@@ -274,6 +274,7 @@ export default {
   },
   data() {
     return {
+      permitir_bonificacion: false,
       dialogMontoCliente: false,
       montoCliente: {
         id: null,
@@ -354,6 +355,20 @@ export default {
     },
   },
   methods: {
+    datosConfiguracion() {
+      let me = this;
+      var url = "/configuracion";
+      axios
+        .get(url)
+        .then(function (response) {
+          let respuesta = response.data;
+          me.permitir_bonificacion =
+            respuesta.configuracionTrabajo.permitir_bonificacion;
+        })
+        .catch(function (error) {
+          console.log(error);
+        });
+    },
     async cargarMontoCliente() {
       try {
         const response = await axios.get("/monto-bonificacion");
@@ -750,9 +765,8 @@ export default {
   async mounted() {
     try {
       this.isLoading = true; // Activar loading
-      await Promise.all([this.listarDatosuser(), this.recuperarIdRol()]);
-
-      // Configurar responsividad
+      this.datosConfiguracion(),
+        await Promise.all([this.listarDatosuser(), this.recuperarIdRol()]);
       this.handleResize();
       window.addEventListener("resize", this.handleResize);
       this.cargarMontoCliente(); // cargar al iniciar
