@@ -201,12 +201,14 @@
                 id="preciounitario"
                 v-model="datosFormulario.precio_costo_unid"
                 placeholder="Ej: 12.50"
+                locale="es-ES"
                 class="p-inputtext-sm bold-input"
                 mode="decimal"
                 :minFractionDigits="2"
                 :maxFractionDigits="2"
                 :class="{ 'p-invalid': errores.precio_costo_unid }"
-                @input="onCostoChange(); validarCampo('precio_costo_unid')"
+                @input="evitarReformateo($event, () => { onCostoChange(); validarCampo('precio_costo_unid') })"
+                @keydown.native="convertirPuntoComa"
               />
               <Button
                 label="Calcular"
@@ -222,9 +224,19 @@
             <label class="font-weight-bold" for="preciopaquete">Precio de Compra Paquete
               <span class="text-danger">*</span></label>
             <div class="p-inputgroup">
-              <InputNumber id="preciopaquete" v-model="datosFormulario.precio_costo_paq" placeholder="Ej: 100.00"
-                class=" p-inputtext-sm bold-input" mode="decimal" :minFractionDigits="2"
-                :class="{ 'p-invalid': errores.precio_costo_paq }" @input="validarCampo('precio_costo_paq')" />
+              <InputNumber
+                id="preciopaquete"
+                v-model="datosFormulario.precio_costo_paq"
+                placeholder="Ej: 100.00"
+                class="p-inputtext-sm bold-input"
+                mode="decimal"
+                locale="es-ES"
+                :minFractionDigits="2"
+                :maxFractionDigits="2"
+                :class="{ 'p-invalid': errores.precio_costo_paq }"
+                @input="evitarReformateo($event, () => validarCampo('precio_costo_paq'))"
+                @keydown.native="convertirPuntoComa"
+              />
               <Button label="Calcular" class="p-button-primary p-button-sm" @click="calcularPrecioCostoPaq" />
             </div>
             <small class="p-error" v-if="errores.precio_costo_paq"><strong>{{ errores.precio_costo_paq
@@ -301,12 +313,14 @@
                     v-model.number="precio.valor"
                     placeholder="Precio"
                     mode="decimal"
+                    locale="es-ES"
                     :min="0"
                     :useGrouping="false"
                     :allowEmpty="true"
                     :minFractionDigits="2"
                     :maxFractionDigits="2"
                     class="p-inputtext-sm w-full"
+                    @keydown.native="convertirPuntoComa"
                     @input="onPrecioChange(precio)"
                   />
                   <span class="p-inputgroup-addon">{{ monedaPrincipal[1] }}</span>
@@ -830,6 +844,46 @@ export default {
     },
   },
   methods: {
+    evitarReformateo(event, callback) {
+      const valor = event.target.value;
+
+      // Si el valor está en un estado intermedio como "10," o "10,."
+      if (valor.endsWith(',') || valor.endsWith(',.')) {
+        return; // ← No ejecutar validaciones
+      }
+
+      // Ejecutar la validación original
+      callback();
+    },
+    convertirPuntoComa(event) {
+      if (event.key === '.') {
+        event.preventDefault();
+        const input = event.target;
+
+        // Si ya tiene coma, solo mover cursor a la parte decimal
+        if (input.value.includes(',')) {
+          const pos = input.value.indexOf(',') + 1;
+          input.setSelectionRange(pos, pos);
+          return;
+        }
+
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+
+        // Insertar una sola coma SI no existe
+        const nuevoValor =
+          input.value.substring(0, start) + ',' + input.value.substring(end);
+
+        input.value = nuevoValor;
+
+        // Colocar cursor después de la coma
+        input.setSelectionRange(start + 1, start + 1);
+
+        // Actualizar modelo
+        input.dispatchEvent(new Event("input"));
+      }
+    },
+
     async guardarDescuento() {
       try {
         const { descuento, fecha_venc_descuento, id } = this.datosFormulario;
