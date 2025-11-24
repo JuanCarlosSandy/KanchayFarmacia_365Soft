@@ -2150,7 +2150,7 @@ export default {
           me.permitir_bonificacion =
             respuesta.configuracionTrabajo.permitir_bonificacion;
           me.permitir_descuento =
-            respuesta.configuracionTrabajo.permitir_descuento; permitir_ofertas
+            respuesta.configuracionTrabajo.permitir_descuento;
           me.permitir_ofertas =
             respuesta.configuracionTrabajo.permitir_ofertas;
         })
