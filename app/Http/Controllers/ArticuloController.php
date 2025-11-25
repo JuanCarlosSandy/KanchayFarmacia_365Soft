@@ -301,7 +301,8 @@ class ArticuloController extends Controller
                 'articulos.precio_costo_paq',
                 'articulos.vencimiento',
                 'articulos.codigo_alfanumerico',
-                'articulos.descripcion_fabrica'
+                'articulos.descripcion_fabrica',
+                'articulos.precio_uno',
             )
             ->where('articulos.condicion', '=', 1);
 
@@ -326,6 +327,34 @@ class ArticuloController extends Controller
         $articulos = $query->orderBy('articulos.id', 'desc')->get();
 
         return ['articulos' => $articulos];
+    }
+    public function actualizarPrecioVenta(Request $request)
+    {
+        try {
+            $articulo = Articulo::findOrFail($request->id);
+
+            // Validar campos
+            if ($request->precio_uno === null) {
+                return response()->json([
+                    "status" => "error",
+                    "message" => "El precio de venta es requerido"
+                ], 400);
+            }
+
+            $articulo->precio_uno = $request->precio_uno;
+            $articulo->save();
+
+            return response()->json([
+                "status" => "success",
+                "message" => "Precio de venta actualizado correctamente"
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                "status" => "error",
+                "message" => "Error al actualizar precio de venta: " . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function verificarLotes(Request $request)

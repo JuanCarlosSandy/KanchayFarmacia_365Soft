@@ -6,6 +6,8 @@
         <div class="loading-text">LOADING...</div>
       </div>
     </div>
+    <Toast :breakpoints="{ '920px': { width: '100%', right: '0', left: '0' } }" style="padding-top: 10px;"
+      appendTo="body" :baseZIndex="99999"></Toast>
     <Panel class="ingreso-panel">
       <template #header>
         <div class="panel-header header-flex">
@@ -135,6 +137,11 @@
 
               <Column field="precio_costo_unid" header="Costo unit" />
               <Column field="precio_costo_paq" header="Costo Paquete" />
+              <Column field="precio_uno" header="Precio Venta">
+                <template #body="slotProps">
+                  {{ Number(slotProps.data.precio_uno).toFixed(2) }}
+                </template>
+              </Column>
             </DataTable>
           </div>
           <div class="p-col-12">
@@ -165,7 +172,10 @@
                     :minFractionDigits="2"
                     :maxFractionDigits="2"
                     class="w-full"
-                    @input="onPrecioUnitarioInput($event, slotProps.data)"
+
+                    @keydown.native="convertirPuntoComa"
+
+                    @input="evitarReformateo($event, (e) => onPrecioUnitarioInput(e, slotProps.data))"
                   />
                 </template>
               </Column>
@@ -179,11 +189,29 @@
                     :minFractionDigits="2"
                     :maxFractionDigits="2"
                     class="w-full"
-                    @input="onPrecioPaqueteInput($event, slotProps.data)"
+                    @keydown.native="convertirPuntoComa"
+                    @input="evitarReformateo($event, (e) => onPrecioPaqueteInput(e, slotProps.data))"
                   />
                 </template>
               </Column>
-              <Column field="unidad_x_paquete" header="Unid x Paq" />
+              <Column header="Precio de Venta">
+                <template #body="slotProps">
+                  <InputText 
+                    v-model="slotProps.data.precio_uno"
+                    placeholder="0.00"
+                    class="p-inputtext-sm inputnumber-compact"
+                    :class="{ 'input-error': slotProps.data.errorPrecioVenta }"
+                    :min="0"
+                    :step="0.01"
+                    locale="es-ES"
+                    :minFractionDigits="2"
+                    :maxFractionDigits="2"
+
+                    @input="validarInput(slotProps.data.precio_uno, 'precio_uno', slotProps.data)"
+                    @blur="onPrecioUnoInput(slotProps.data.precio_uno, slotProps.data)"
+                  />
+                </template>
+              </Column>
               <Column header="Fecha vencimiento">
                 <template #body="slotProps">
                   <InputText
@@ -265,6 +293,9 @@ import Column from "primevue/column";
 import Panel from "primevue/panel";
 import Swal from "sweetalert2";
 import debounce from "lodash/debounce";
+import ToastService from 'primevue/toastservice';
+import Toast from 'primevue/toast';
+import Tooltip from 'primevue/tooltip';
 
 export default {
   components: {
@@ -276,7 +307,11 @@ export default {
     DataTable,
     Column,
     Panel,
-    Swal,
+    Swal, 
+    ToastService,
+    Toast,
+  },directives: {
+    'tooltip': Tooltip
   },
   props: {
     monedaPrincipal: {
@@ -432,6 +467,98 @@ export default {
     window.removeEventListener("keydown", this.handleKeyPress);
   },
   methods: {
+    convertirPuntoComa(event) {
+      if (event.key !== '.') return;
+
+      event.preventDefault();
+
+      // 🔥 SI ES INPUTNUMBER → obtener input interno
+      let input = event.target;
+      if (input.tagName !== 'INPUT') {
+        input = input.querySelector('input');
+      }
+
+      if (!input) return;
+
+      // Si ya tiene coma, solo mover cursor
+      if (input.value.includes(',')) {
+        const pos = input.value.indexOf(',') + 1;
+        input.setSelectionRange(pos, pos);
+        return;
+      }
+
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+
+      // Insertar coma
+      const nuevoValor =
+        input.value.substring(0, start) + ',' + input.value.substring(end);
+
+      input.value = nuevoValor;
+
+      input.setSelectionRange(start + 1, start + 1);
+
+      // 🔥 Aquí está la clave:
+      // Disparamos input para que PrimeVue actualice event.value correctamente
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+    evitarReformateo(event, callback) {
+
+      // 🔥 SI ES INPUTNUMBER → usar input interno
+      let input = event.target;
+      if (input && input.tagName !== 'INPUT') {
+        input = input.querySelector('input');
+      }
+
+      const valor = input ? input.value : String(event.value || '');
+
+      // Si está en estado intermedio "10," o "10,."
+      if (valor.endsWith(',') || valor.endsWith(',.')) {
+        return; 
+      }
+
+      callback(event);
+    },
+    /*
+    evitarReformateo(event, callback) {
+      const valor = event.target.value;
+
+      // Si el valor está en un estado intermedio como "10," o "10,."
+      if (valor.endsWith(',') || valor.endsWith(',.')) {
+        return; // ← No ejecutar validaciones
+      }
+
+      // Ejecutar la validación original
+      callback();
+    },
+    convertirPuntoComa(event) {
+      if (event.key === '.') {
+        event.preventDefault();
+        const input = event.target;
+
+        // Si ya tiene coma, solo mover cursor a la parte decimal
+        if (input.value.includes(',')) {
+          const pos = input.value.indexOf(',') + 1;
+          input.setSelectionRange(pos, pos);
+          return;
+        }
+
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+
+        // Insertar una sola coma SI no existe
+        const nuevoValor =
+          input.value.substring(0, start) + ',' + input.value.substring(end);
+
+        input.value = nuevoValor;
+
+        // Colocar cursor después de la coma
+        input.setSelectionRange(start + 1, start + 1);
+
+        // Actualizar modelo
+        input.dispatchEvent(new Event("input"));
+      }
+    },*/
     async confirmarRegistroCompra() {
       const result = await Swal.fire({
         title: '¿Seguro que quiere registrar la compra?',
@@ -454,35 +581,101 @@ export default {
       this.buscarA = "";
       this.listarArticuloDebounced("", this.criterioA);
     },
+    validarInput(event, campo, item) {
+        // 1. Obtener el valor de manera compatible (sin Optional Chaining '?.')
+        let valor;
+        
+        if (typeof event === 'string' || typeof event === 'number') {
+            valor = String(event);
+        } else if (event && event.target && event.target.value !== undefined) {
+            valor = event.target.value;
+        } else {
+            valor = '';
+        }
+
+        // 2. Limpieza inicial: Permitimos números (0-9), coma (,) Y PUNTO (.)
+        valor = valor.replace(/[^0-9.,]/g, '');
+
+        // 3. Lógica para limitar a un solo separador
+        const separador = valor.includes(',') ? ',' : '.';
+        const partes = valor.split(separador);
+
+        if (partes.length > 1) {
+            let parteDecimalLimpia = partes.slice(1).join('').replace(/[.,]/g, '');
+            parteDecimalLimpia = parteDecimalLimpia.substring(0, 2);
+            valor = partes[0] + separador + parteDecimalLimpia;
+        }
+
+        // 4. Asegurar que no haya separador al inicio (ej: ,50 -> 0,50)
+        if (valor.startsWith(',') || valor.startsWith('.')) {
+            valor = '0' + valor;
+        }
+        
+        // 5. Asignar el valor limpio de vuelta al item (para que v-model se actualice con el valor limpio)
+        if (item && item[campo] !== undefined) {
+            item[campo] = valor;
+        } else if (this[campo] !== undefined) {
+            this[campo] = valor;
+        }
+    },
 
     async onPrecioUnitarioInput(valor, item) {
-      // Actualiza precio unitario y recalcula precio paquete
-      item.precio = valor;
-      if (item.unidad_x_paquete && !isNaN(item.unidad_x_paquete)) {
-        item.precio_paquete =
-          parseFloat(valor) * parseFloat(item.unidad_x_paquete);
+      console.log("onPrecioUnitarioInput llamado con valor:", valor, "y item:", item);
+      let precioUnitario = this.getNumero(valor);
+      let precioUnitarioLimitado = precioUnitario.toFixed(2);
+      item.precio = precioUnitarioLimitado;
+
+      let precioVenta = this.getNumero(item.precio_uno);
+
+      if (precioVenta < precioUnitarioLimitado) {
+        item.errorPrecioVenta = true;
+
+        this.$toast.add({
+          severity: 'warn',
+          summary: 'Advertencia',
+          detail: 'El precio de venta no puede ser menor al costo unitario.',
+          life: 3500
+        });
+
+        return;
       }
-      // Llama a la función para actualizar en backend
+
+      item.errorPrecioVenta = false;
+
+      let unidades = this.getNumero(item.unidad_x_paquete);
+      if (unidades > 0) {
+        item.precio_paquete = (precioUnitarioLimitado * unidades).toFixed(2);
+      }
+
       await this.cambiarPrecios(
         item.precio,
         item.precio_paquete,
         "Costo unitario",
         item.idarticulo
       );
-      // Refresca la tabla de productos
+      
       this.listarArticulo(this.buscarA, this.criterioA);
     },
 
     async onPrecioPaqueteInput(valor, item) {
-      // Actualiza precio paquete y recalcula precio unitario
-      item.precio_paquete = valor;
-      if (
-        item.unidad_x_paquete &&
-        !isNaN(item.unidad_x_paquete) &&
-        parseFloat(item.unidad_x_paquete) !== 0
-      ) {
-        item.precio = parseFloat(valor) / parseFloat(item.unidad_x_paquete);
+      console.log("onPrecioPaqueteInput llamado con valor:", valor, "y item:", item);
+      // 1. Sanitizar y limitar el valor (forzando 2 decimales para el cálculo)
+      let precioPaquete = this.getNumero(valor);
+      
+      // 2. Aplicar el límite de 2 decimales antes del cálculo
+      let precioPaqueteLimitado = precioPaquete.toFixed(2);
+
+      // Actualiza precio paquete
+      item.precio_paquete = precioPaqueteLimitado; // Asignamos el valor limpio y limitado
+      
+      let unidades = this.getNumero(item.unidad_x_paquete);
+      
+      if (unidades !== 0) {
+        // 3. Recalcula precio unitario
+        let resultadoUnitario = this.getNumero(precioPaqueteLimitado) / unidades;
+        item.precio = resultadoUnitario.toFixed(2);
       }
+      
       // Llama a la función para actualizar en backend
       await this.cambiarPrecios(
         item.precio,
@@ -493,6 +686,50 @@ export default {
       // Refresca la tabla de productos
       this.listarArticulo(this.buscarA, this.criterioA);
     },
+    async onPrecioUnoInput(valor, item) {
+      let precioVenta = this.getNumero(valor);
+      let precioVentaLimitado = precioVenta.toFixed(2);
+      item.precio_uno = precioVentaLimitado;
+
+      let costoUnitario = this.getNumero(item.precio);
+
+      // ⚠️ Mostrar advertencia pero permitir guardar
+      if (precioVenta < costoUnitario) {
+        item.errorPrecioVenta = true;
+
+        this.$toast.add({
+          severity: 'warn',
+          summary: 'Advertencia',
+          detail: 'El precio de venta es menor que el costo unitario.',
+          life: 3500
+        });
+
+        // ❗ NO HACEMOS return → se permite guardar igual
+      } else {
+        // ✔️ Precio válido → quitar borde rojo
+        item.errorPrecioVenta = false;
+      }
+
+      // 🔥 Siempre actualizar en la base de datos
+      await this.cambiarPrecioVenta(item.idarticulo, precioVentaLimitado);
+
+      // 🔄 Refrescar tabla
+      this.listarArticulo(this.buscarA, this.criterioA);
+    },
+    getNumero(valor) {
+      if (!valor) return 0;
+      return parseFloat(String(valor).replace(',', '.')) || 0;
+    },
+    async cambiarPrecioVenta(idArticulo, precioVenta) {
+      try {
+        await axios.post("/articulo/actualizarPrecioVenta", {
+          id: idArticulo,
+          precio_uno: precioVenta,
+        });
+      } catch (error) {
+        console.error("Error al actualizar precio de venta:", error);
+      }
+    },
 
     listarArticulo(buscar, criterio) {
       let me = this;
@@ -502,10 +739,24 @@ export default {
         .get(url)
         .then(function(response) {
           var respuesta = response.data;
-          me.arrayArticulo = respuesta.articulos;
+           me.arrayArticulo = respuesta.articulos.map(art => ({
+            ...art,
+
+            // Normalizar todos los campos numéricos
+            precio_uno: me.normalizarNumero(art.precio_uno),
+          }));
         })
         .catch(function(error) {});
     },
+    normalizarNumero(valor) {
+      if (valor === null || valor === undefined) return null;
+
+      // Elimina comas por si acaso y convierte "10.0000" -> 10
+      const num = parseFloat(String(valor).replace(',', '.'));
+
+      return isNaN(num) ? null : num;
+    },
+
     listarArticuloDebounced: debounce(function(buscar, criterio) {
       this.listarArticulo(buscar, criterio);
     }, 200), // espera 500ms
@@ -931,7 +1182,11 @@ export default {
         unidad_x_paquete: producto.unidad_envase,
         fecha_vencimiento: me.fechaPorDefecto,
         cantidad: 1,
+        precio_uno: producto.precio_uno ? parseFloat(producto.precio_uno).toFixed(2) : "0,00",
+        errorPrecioVenta: false,
       });
+      console.log('arrayDetalle:', me.arrayDetalle);
+      console.log('producto:', producto);
     },
   },
 };
@@ -1473,5 +1728,9 @@ export default {
 }
 .swal2-popup .swal2-styled:focus {
   box-shadow: 0 0 0 2px #28a74555 !important;
+}
+.input-error {
+  border: 2px solid #dc3545 !important;
+  background: #ffe6e6 !important;
 }
 </style>

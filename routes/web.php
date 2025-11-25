@@ -249,6 +249,7 @@ Route::group(["middleware" => ["auth"]], function () {
         Route::get("/articulo/listarPdf", "ArticuloController@listarPdf")->name(
             "articulos_pdf"
         );
+        Route::post("/articulo/actualizarPrecioVenta", "ArticuloController@actualizarPrecioVenta");
         Route::get(
             "/articulo/listarArticuloPedido",
             "ArticuloController@listPedProve"
